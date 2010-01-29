@@ -6,11 +6,15 @@ use Config '%Config';
 use Carp qw(carp croak);
 use File::Spec;
 use Tie::Indexed::Hash;
-require Cwd;
+require Cwd;  # We do not want to pollute our namespace with useless stuff...
 
 
 our $VERSION = '0.01';
-our @Original_INC = @INC;	
+our @Original_INC = @INC;
+our %Default = ( DIRS => [ _script_dir(), ],
+                 LIB_DIR => 'libperl',
+               );
+our $Interpreter_Dir_Name = 'PerlInterpreterName';
 
 
 my $DEBUG = 0;
@@ -23,6 +27,7 @@ my $osname = $Config{osname};
 my $perl_osname = $^O;
 my @inc_version_list = reverse split(/[ \t]+/, $Config{inc_version_list});
 
+# Validate the values given by %Config...
 if( (not defined $version) || (length($version) < 1) ) {
     carp( "The version reported by Config is empty!" );
 }
@@ -45,12 +50,6 @@ if( (defined $version) && (length($version) >= 1) &&
         carp( "The version reported by Config ($version) differs from the " .
               "version reported by the perl interpreter ($perl_version)!" );
     }
-}
-if( (defined $version) && (length($version) >= 1) &&
-    (defined $perl_version) && (length($perl_version) >= 1) &&
-    ($perl_version eq $version) &&
-    ($version =~ m/\A\s*(\d+(?:\.\d+)?)(?:\.\d+(?:\.\d+)*?)*?\s*\z/) ) {
-    $major_version = $1;
 }
 if( (defined $osname) && (length($osname) >= 1) &&
     (defined $perl_osname) && (length($perl_osname) >= 1) &&
@@ -84,11 +83,14 @@ if( (defined $archname64) && (length($archname64) >= 1) &&
 }
 
 
+# Define some wrapper functions.
 sub splitpath { File::Spec->splitpath(@_); }
 sub catpath { File::Spec->catpath(@_); }
 sub splitdir { File::Spec->splitdir(@_); }
 sub catdir { File::Spec->catdir(@_); }
 sub file_name_is_absolute { File::Spec->file_name_is_absolute(@_); }
+sub getcwd { Cwd::getcwd(); }
+sub realpath { Cwd::realpath(@_); }
 
 
 sub import {
@@ -97,17 +99,53 @@ sub import {
     my %param = _parse_params(@_);
     $DEBUG = ($param{DEBUG}) ? 1 : 0;
 
-    my @lib_dirs = ();
-    if(defined $param{LIB_DIR}) {
-        my @dirs = ();
-        if((defined $param{DIRS}) && (ref($param{DIRS}) eq 'ARRAY')) {
-            @dirs = _find_dirs($param{DIRS});
-        }
-        @lib_dirs = _find_lib_dirs( $param{LIB_DIR}, $param{DELTA},
-                                    $param{DEPTH_FIRST}, $param{HALT_ON_FIND},
-                                    \@dirs );
+    if($param{ORIGINAL}) {
+      # Restore the original INC list.
+      @INC = _simplify_list(@Original_INC);
     }
-    _update_INC_array(\@lib_dirs);
+    else {
+        my @lib_dirs = ();
+        if(defined $param{LIB_DIR}) {
+            my @dirs = ();
+            if((defined $param{DIRS}) && (ref($param{DIRS}) eq 'ARRAY')) {
+                @dirs = _find_dirs($param{DIRS});
+            }
+            @lib_dirs = _find_lib_dirs( $param{LIB_DIR},
+                                        $param{DELTA},
+                                        $param{DEPTH_FIRST},
+                                        $param{HALT_ON_FIND},
+                                        \@dirs );
+        }
+        foreach my $dir (@lib_dirs) {
+            next if(not defined $dir);
+            next if((not -e $dir) || (not -d $dir) || (not -r $dir));
+            unshift(@INC, $dir);
+            # Add the library tree under each library directory we found to the
+            # INC array.
+            my @d = _get_dirs($dir);
+            foreach (@d) {
+                if((-e $_) && (-d $_) && (-r $_)) {
+                  unshift(@INC, $_);
+                }
+            }
+            my %root = _get_path_hash($dir);
+            my $r = catdir($root{'volume'}, @{$root{'dirs'}});
+            my $interp_dir = catdir( $r, $Interpreter_Dir_Name,
+                                     _find_perl_type() );
+            if((-e $interp_dir) && (-d $interp_dir) && (-r $interp_dir)) {
+                # If we found a directory which differentiates the Perl library
+                # by interpreter type, then add the library tree under the
+                # directory which matches our interpreter to the INC array.
+                my @d = _get_dirs($interp_dir);
+                foreach (@d) {
+                    if((-e $_) && (-d $_) && (-r $_)) {
+                        unshift(@INC, $_);
+                    }
+                }
+            }
+        }
+        @INC = _simplify_list(@INC);
+    }
 
     if($DEBUG) {
       print STDERR '' . ('-' x 78) . "\n";
@@ -135,16 +173,21 @@ sub _parse_params {
 
     my %param = ( DIRS => undef,
                   LIB_DIR => undef,
-                  DEPTH_FIRST => 1,
-                  HALT_ON_FIND => 1,
-                  DELTA => 0,
-                  DEBUG => 0,
+                  ORIGINAL => 0, # Boolean
+                  DEPTH_FIRST => 1, # Boolean
+                  HALT_ON_FIND => 1, # Boolean
+                  DELTA => 0, # Number
+                  DEBUG => 0, # Boolean
                 );
+    # If the first value passed is a valid parameter name, then we were passed a
+    # hash.
     if(scalar(grep { uc($list[0]) eq $_ } keys(%param)) >= 1) {
         for(my $x = 0; $x <= $#list; $x+=2) {
             $param{uc($list[$x])} = $list[$x + 1];
         }
     }
+    # If the first value is an array reference, then treat the passed values as
+    # a list where order matters.
     elsif(ref($list[0]) eq 'ARRAY') {
         my $array_ref = shift(@list);
         my @temp = ();
@@ -173,14 +216,37 @@ sub _parse_params {
             $param{DEBUG} = shift(@list);
         }
     }
+    # If all else fails, treat the passed values as a simple list of directory
+    # names (after parsing out the special command ops; all command ops start
+    # with a ':').
     else {
+        my %op_re = ( ORIGINAL => qr/(?:NO[\-\_])?ORIGINAL(?:[\-\_]INC)?/i,
+                      DEPTH_FIRST => qr/(?:NO[\-\_])?DEPTH(?:[\-\_]FIRST)?/i
+                      HALT_ON_FIND => qr/(?:NO[\-\_])?HALT(?:[\-\_]ON[\-\_]FIND)?/i,
+                      DEBUG => qr/(?:NO[\-\_])?DEBUG/i,
+                    );
+        LIST: for(my $x = 0; $x <= $#list; $x++) {
+            foreach my $name (keys %op_re) {
+                my $regex = $op{$name};
+                if($list[$x] =~ m/\A\s*[:]($regex)\s*\z/i) {
+                    my $op = $1;
+                    $param{$name} = ($op =~ m/\A\s*NO[\-\_]/i) ? 0 : 1;
+                    splice(@list, $x, 1);
+                    $x--;
+                    next LIST;
+                }
+            }
+        }
         $param{DIRS} = \@list;
         $param{LIB_DIR} = '';
         $param{HALT_ON_FIND} = 0;
     }
 
+    # If a parameter value was not set, set a default value.  If a parameter
+    # value was set to something we were not expecting, try to correct the
+    # error; if that fails, set the bad parameter to its default value.
     if(not defined $param{DIRS}) {
-        $param{DIRS} = [ _script_dir() ];
+        $param{DIRS} = \@{$Default{DIRS}};
     }
     if((defined $params{DIRS}) && (ref($param{DIRS}) ne 'ARRAY'))
     {
@@ -194,20 +260,26 @@ sub _parse_params {
             $param{DIRS} = \@temp;
         }
         else {
-            $param{DIRS} = [ _script_dir() ];
+            $param{DIRS} = \@{$Default{DIRS}};
         }
     }
     if((defined $param{DIRS}) && (ref($param{DIRS}) eq 'ARRAY')) {
         for(my $x = 0; $x <= $#{$param{DIRS}}; $x++) {
-            if(not $param{DIRS}->[$x]) {
-                carp( "Empty value in DIRS parameter at position $x " .
+            if(not defined $param{DIRS}->[$x]) {
+                carp( "Undefined value in DIRS parameter at position $x " .
                       "(zero-based)!" );
                 next;
             }
         }
     }
     if(not defined $param{LIB_DIR}) {
-        $param{LIB_DIR} = 'libperl';
+        $param{LIB_DIR} = $Default{LIB_DIR};
+    }
+    if( (defined $param{ORIGINAL}) &&
+        ($param{ORIGINAL} =~ m/\A\s*(?:1|T(?:rue)?)\s*\z/i) ) {
+        $param{ORIGINAL} = 1;
+    else {
+        $param{ORIGINAL} = 0;
     }
     if( (defined $param{DEPTH_FIRST}) &&
         ($param{DEPTH_FIRST} =~ m/\A\s*(?:0|F(?:alse)?)\s*\z/i) ) {
@@ -239,30 +311,21 @@ sub _parse_params {
 
 
 sub _script_dir {
-    my %cwd = ( 'path' => Cwd::getcwd(), );
-    ($cwd{'volume'}, $cwd{'directories'}, $cwd{'file'}) =
-            splitpath($cwd{'path'}, 1);
-    @{$cwd{'dirs'}} = splitdir($cwd{'directories'});
-
-    my %script = ( 'path' => "$0", );
-    ($script{'volume'}, $script{'directories'}, $script{'file'}) =
-            splitpath($script{'path'});
-    @{$script{'dirs'}} = splitdir($script{'directories'});
-
+    my %cwd = _get_path_hash(getcwd());
+    my %script = _get_path_hash("$0");
+    # If this code was started with an absolute path, use that as our default
+    # base directory; otherwise prepend the current working directory to the
+    # (relative) code directory.
     my $path = (file_name_is_absolute($script{'path'}))
-                   ? catpath( $script{'volume'},
-                              catdir(@{$script{'dirs'}}),
-                              '' )
-                   : catpath( $cwd{'volume'},
-                              catdir(@{$cwd{'dirs'}}, @{$script{'dirs'}}),
-                              '' );
-    my $full_path = Cwd::realpath($path);
+                 ? catdir($script{'volume'}, @{$script{'dirs'}})
+                 : catdir($cwd{'volume'}, @{$cwd{'dirs'}}, @{$script{'dirs'}});
+    my $full_path = realpath($path);
     if(not $full_path) {
         $full_path = $path;
     }
     if((not -e $full_path) || (not -d $full_path) || (not -r $full_path)) {
         $path = catdir($cwd{'volume'}, @{$cwd{'dirs'}});
-        $full_path = Cwd::realpath($path);
+        $full_path = realpath($path);
         if(not $full_path) {
             $full_path = $path;
         }
@@ -302,11 +365,8 @@ sub _find_lib_dirs
     my $found_dir = undef;
     my @lib_dirs = ();
     if($depth_first) {
-        SEARCH: foreach my $d (@{$dirs_ref}) {
-            my %dir = ( 'path' => $d, );
-            ($dir{'volume'}, $dir{'directories'}, $dir{'file'}) =
-                    splitpath($dir{'path'}, 1);
-            @{$dir{'dirs'}} = splitdir($dir{'directories'});
+        SEARCH: foreach my $p (@{$dirs_ref}) {
+            my %dir = _get_path_hash($p);
             my $d = catdir($dir{'volume'}, @{$dir{'dirs'}});
             my @up = ();
             my @down = ();
@@ -314,7 +374,7 @@ sub _find_lib_dirs
                 if($DEBUG && ($x > 0)) {
                     print STDERR "***DEBUG: Searching up/down $x " .
                                  "director" . (($x == 1) ? 'y' : 'ies') .
-                                 " from '$dir' (searching max of $delta " .
+                                 " from '$d' (searching max of $delta " .
                                  "director" . (($x == 1) ? 'y' : 'ies') .
                                  " up/down).\n";
                 }
@@ -340,16 +400,13 @@ sub _find_lib_dirs
         my @up = ();
         my @down = ();
         SEARCH: for(my $x = 0; $x <= $delta; $x++) {
-            foreach my $d (@{$dirs_ref}) {
-                my %dir = ( 'path' => $d, );
-                ($dir{'volume'}, $dir{'directories'}, $dir{'file'}) =
-                        splitpath($dir{'path'}, 1);
-                @{$dir{'dirs'}} = splitdir($dir{'directories'});
+            foreach my $p (@{$dirs_ref}) {
+                my %dir = _get_path_hash($p);
                 my $d = catdir($dir{'volume'}, @{$dir{'dirs'}});
                 if($DEBUG && ($x > 0)) {
                     print STDERR "***DEBUG: Searching up/down $x " .
                                  "director" . (($x == 1) ? 'y' : 'ies') .
-                                 " from '$dir' (searching max of $delta " .
+                                 " from '$d' (searching max of $delta " .
                                  "director" . (($x == 1) ? 'y' : 'ies') .
                                  " up/down).\n";
                 }
@@ -391,73 +448,47 @@ sub _find_lib_dirs
 }
 
 
-sub _update_INC_array {
-    my $dirs_ref = shift;
+sub _get_path_hash {
+    my $path = shift;
 
-    foreach my $dir (@{$dirs_ref}) {
-        next if(not defined $dir);
-        next if((not -e $dir) || (not -d $dir) || (not -r $dir));
+    my %hash = ( 'path' => $path, );
+    ($hash{'volume'}, $hash{'directories'}, $hash{'file'}) =
+                splitpath($hash{'path'}, 1);
+    @{$hash{'dirs'}} = splitdir($hash{'directories'});
 
-        unshift(@INC, $dir);
-        my @d = _get_dirs($dir);
-        foreach (@d) {
-            if((-e $_) && (-d $_) && (-r $_)) {
-              unshift(@INC, $_);
-            }
-        }
-
-        my %root = ( 'path' => $dir, );
-        ($root{'volume'}, $root{'directories'}, $root{'file'}) =
-                splitpath($root{'path'}, 1);
-        @{$root{'dirs'}} = splitdir($root{'directories'});
-        my $r = catdir($root{'volume'}, @{$root{'dirs'}});
-        my $interpreter_dir = catdir( $r, 'PerlInterpreterName',
-                                      _find_perl_type() );
-        if( (-e $interpreter_dir) &&
-            (-d $interpreter_dir) &&
-            (-r $interpreter_dir) ) {
-            my @d = _get_dirs($interpreter_dir);
-            foreach (@d) {
-                if((-e $_) && (-d $_) && (-r $_)) {
-                    unshift(@INC, $_);
-                }
-            }
-        }
-    }
-    @INC = _simplify_list(@INC);
-
-    return;
+    return wantarray ? %hash : \%hash;
 }
 
 
 sub _get_dirs {
     my $path = shift;
 
-    my %dir = ( 'path' => $path, );
-    ($dir{'volume'}, $dir{'directories'}, $dir{'file'}) =
-            splitpath($dir{'path'}, 1);
-    @{$dir{'dirs'}} = splitdir($dir{'directories'});
+    my %dir = _get_path_hash($path);
     my $d = catdir($dir{'volume'}, @{$dir{'dirs'}});
     my @lib = ( catdir($d, 'lib'), );
     my @site_lib = ( catdir($d, 'site', 'lib'), )
-    if((defined $archname) && (length($archname) >= 1)) {
-        push @lib, catdir($d, 'lib', $archname);
-        push @site_lib, catdir($d, 'site', 'lib', $archname);
-    }
-    if((defined $archname64) && (length($archname64) >= 1)) {
-        push @lib, catdir($d, 'lib', $archname64);
-        push @site_lib, catdir($d, 'site', 'lib', $archname64);
-    }
-    if((defined $version) && (length($version) >= 1)) {
-        push @lib, catdir($d, 'lib', $version);
-        push @site_lib, catdir($d, 'site', 'lib', $version);
-        if((defined $archname) && (length($archname) >= 1)) {
-            push @lib, catdir($d, 'lib', $version, $archname);
-            push @site_lib, catdir($d, 'site', 'lib', $version, $archname);
+    foreach my $ver (@inc_version_list) {
+        if((defined $ver) && (length($ver) >= 1)) {
+            push @lib, catdir($lib[0], $ver);
+            push @site_lib, catdir($site_lib[0], $ver);
         }
-        if((defined $archname64) && (length($archname64) >= 1)) {
-            push @lib, catdir($d, 'lib', $version, $archname64);
-            push @site_lib, catdir($d, 'site', 'lib', $version, $archname64);
+    }
+    foreach my $a ($archname, $archname64) {
+        if((defined $a) && (length($a) >= 1)) {
+            push @lib, catdir($lib[0], $a);
+            push @site_lib, catdir($site_lib[0], $a);
+        }
+    }
+    foreach my $v ($major_version, $version) {
+        if((defined $v) && (length($v) >= 1)) {
+            push @lib, catdir($lib[0], $v);
+            push @site_lib, catdir($site_lib[0], $v);
+            foreach my $a ($archname, $archname64) {
+                if((defined $a) && (length($a) >= 1)) {
+                    push @lib, catdir($lib[0], $v, $a);
+                    push @site_lib, catdir($site_lib[0], $v, $a);
+                }
+            }
         }
     }
     my @dirs = (@lib, @site_lib);
@@ -467,10 +498,7 @@ sub _get_dirs {
 
 
 sub _find_perl_type {
-    my %perl = ( 'path' => $^X, );
-    ($perl{'volume'}, $perl{'directories'}, $perl{'file'}) =
-            splitpath($perl{'path'});
-    @{$perl{'dirs'}} = splitdir($perl{'directories'});
+    my %perl = _get_path_hash("$^X");
     my $strawberry_re = qr/(?:\b)strawberry[\-]?perl(?:\b)/i;
     my $vanilla_re = qr/(?:\b)vanilla[\-]?perl(?:\b)/i;
 
@@ -510,7 +538,7 @@ sub _glob_dir {
     my $dir = shift;
 
     my @list = grep { (-e $_) && (-d $_) && (-r $_) }
-               map { my $p = Cwd::realpath($_);
+               map { my $p = realpath($_);
                      if(not $p) { $p = $_; }
                      $p; }
                grep { -e $_ } glob($dir);
@@ -567,9 +595,10 @@ Version 0.01
 =head1 SYNOPSIS
 
 This pragma allows you to specify one or more directories to search for the
-given library directory name to be added to the C<@INC> array.  Also, based on Perl
-interpreter type and version, this pragma will add the correct sub-directories
-within the given library directory (but only if said directory is found).
+given library directory name to be added to the C<@INC> array.  Also, based on
+Perl interpreter type and version, this pragma will add the correct
+sub-directories within the given library directory (but only if said directory
+is found).
 
   # Called with a hash:
   use lib::tree ( DIRS =>  [ '/some/directory/',
@@ -741,14 +770,22 @@ See http://dev.perl.org/licenses/ for more information.
 =begin COMMENT
 
 .../lib/
+.../lib/{$inc_version}/
 .../lib/${archname}/
 .../lib/${archname64}/
+.../lib/${major_version}/
+.../lib/${major_version}/${archname}/
+.../lib/${major_version}/${archname64}/
 .../lib/${version}/
 .../lib/${version}/${archname}/
 .../lib/${version}/${archname64}/
 .../site/lib/
+.../site/lib/{$inc_version}/
 .../site/lib/${archname}/
 .../site/lib/${archname64}/
+.../site/lib/${major_version}/
+.../site/lib/${major_version}/${archname}/
+.../site/lib/${major_version}/${archname64}/
 .../site/lib/${version}/
 .../site/lib/${version}/${archname}/
 .../site/lib/${version}/${archname64}/
