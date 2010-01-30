@@ -4,9 +4,11 @@ use warnings;
 use strict;
 use Config '%Config';
 use Carp qw(carp croak);
-use File::Spec;
+use File::Spec::Functions qw( splitpath catpath
+                              splitdir catdir
+                              file_name_is_absolute );
+use Cwd qw(getcwd realpath);
 use Tie::Indexed::Hash;
-require Cwd;  # We do not want to pollute our namespace with useless stuff...
 
 
 our $VERSION = '0.01';
@@ -83,16 +85,7 @@ if( (defined $archname64) && (length($archname64) >= 1) &&
 }
 
 
-# Define some wrapper functions.
-sub splitpath { File::Spec->splitpath(@_); }
-sub catpath { File::Spec->catpath(@_); }
-sub splitdir { File::Spec->splitdir(@_); }
-sub catdir { File::Spec->catdir(@_); }
-sub file_name_is_absolute { File::Spec->file_name_is_absolute(@_); }
-sub getcwd { Cwd::getcwd(); }
-sub realpath { Cwd::realpath(@_); }
-
-
+# Typically called via "use lib::tree ( ... );"
 sub import {
     my $object = shift;
     my $class = ref($object) || $object;
@@ -116,53 +109,59 @@ sub import {
                                         $param{HALT_ON_FIND},
                                         \@dirs );
         }
-        foreach my $dir (@lib_dirs) {
-            next if(not defined $dir);
-            next if((not -e $dir) || (not -d $dir) || (not -r $dir));
-            unshift(@INC, $dir);
-            # Add the library tree under each library directory we found to the
-            # INC array.
-            my @d = _get_dirs($dir);
-            foreach (@d) {
-                if((-e $_) && (-d $_) && (-r $_)) {
-                  unshift(@INC, $_);
-                }
-            }
-            my %root = _get_path_hash($dir);
-            my $r = catdir($root{'volume'}, @{$root{'dirs'}});
-            my $interp_dir = catdir( $r, $Interpreter_Dir_Name,
-                                     _find_perl_type() );
-            if((-e $interp_dir) && (-d $interp_dir) && (-r $interp_dir)) {
-                # If we found a directory which differentiates the Perl library
-                # by interpreter type, then add the library tree under the
-                # directory which matches our interpreter to the INC array.
-                my @d = _get_dirs($interp_dir);
-                foreach (@d) {
-                    if((-e $_) && (-d $_) && (-r $_)) {
-                        unshift(@INC, $_);
-                    }
-                }
-            }
-        }
+        my @inc_dirs = _find_INC_dirs(\@lib_dirs);
+        foreach (@inc_dirs) { unshift(@INC, $_); }
         @INC = _simplify_list(@INC);
     }
 
     if($DEBUG) {
-      print STDERR '' . ('-' x 78) . "\n";
-      print STDERR "***DEBUG: The INC array is now:\n  " .
-                   join("\n  ", @INC) . "\n";
-      print STDERR '' . ('-' x 78) . "\n";
+        print STDERR '' . ('-' x 78) . "\n";
+        print STDERR "***DEBUG: The INC array is now:\n  " .
+                     join("\n  ", @INC) . "\n";
+        print STDERR '' . ('-' x 78) . "\n";
     }
 
     return;
 }
 
 
+# Typically called via "no lib::tree ( ... );"
 sub unimport {
     my $object = shift;
     my $class = ref($object) || $object;
     my %param = _parse_params(@_);
     $DEBUG = ($param{DEBUG}) ? 1 : 0;
+
+    my %remove = ();
+    if($param{ORIGINAL}) {
+      # Remove the values which were in the original INC list.
+      foreach (@Original_INC) { $remove{$_} = 1; }
+    }
+    else {
+        my @lib_dirs = ();
+        if(defined $param{LIB_DIR}) {
+            my @dirs = ();
+            if((defined $param{DIRS}) && (ref($param{DIRS}) eq 'ARRAY')) {
+                @dirs = _find_dirs($param{DIRS});
+            }
+            @lib_dirs = _find_lib_dirs( $param{LIB_DIR},
+                                        $param{DELTA},
+                                        $param{DEPTH_FIRST},
+                                        $param{HALT_ON_FIND},
+                                        \@dirs );
+        }
+        my @remove_dirs = _find_INC_dirs(\@lib_dirs);
+        foreach (@remove_dirs) { $remove{$_} = 1; }
+    }
+    @INC = grep { (not exists $remove{$_}) } @INC
+    @INC = _simplify_list(@INC);
+
+    if($DEBUG) {
+        print STDERR '' . ('-' x 78) . "\n";
+        print STDERR "***DEBUG: The INC array is now:\n  " .
+                     join("\n  ", @INC) . "\n";
+        print STDERR '' . ('-' x 78) . "\n";
+    }
 
     return;
 }
@@ -179,6 +178,7 @@ sub _parse_params {
                   DELTA => 0, # Number
                   DEBUG => 0, # Boolean
                 );
+
     # If the first value passed is a valid parameter name, then we were passed a
     # hash.
     if(scalar(grep { uc($list[0]) eq $_ } keys(%param)) >= 1) {
@@ -220,17 +220,21 @@ sub _parse_params {
     # names (after parsing out the special command ops; all command ops start
     # with a ':').
     else {
-        my %op_re = ( ORIGINAL => qr/(?:NO[\-\_])?ORIGINAL(?:[\-\_]INC)?/i,
-                      DEPTH_FIRST => qr/(?:NO[\-\_])?DEPTH(?:[\-\_]FIRST)?/i
-                      HALT_ON_FIND => qr/(?:NO[\-\_])?HALT(?:[\-\_]ON[\-\_]FIND)?/i,
-                      DEBUG => qr/(?:NO[\-\_])?DEBUG/i,
-                    );
+        $param{LIB_DIR} = '';
+        $param{HALT_ON_FIND} = 0;
+        my $no_re = qr/NO[\-\_]/i;
+        my %op = ( ORIGINAL =>
+                       qr/(?:$no_re)?(?:RESTORE[\-\_])?ORIGINAL(?:[\-\_]INC)?/i,
+                   DEPTH_FIRST => qr/(?:$no_re)?DEPTH(?:[\-\_]FIRST)?/i
+                   HALT_ON_FIND => qr/(?:$no_re)?HALT(?:[\-\_]ON[\-\_]FIND)?/i,
+                   DEBUG => qr/(?:$no_re)?DEBUG/i,
+                 );
         LIST: for(my $x = 0; $x <= $#list; $x++) {
-            foreach my $name (keys %op_re) {
+            foreach my $name (keys %op) {
                 my $regex = $op{$name};
-                if($list[$x] =~ m/\A\s*[:]($regex)\s*\z/i) {
-                    my $op = $1;
-                    $param{$name} = ($op =~ m/\A\s*NO[\-\_]/i) ? 0 : 1;
+                if($list[$x] =~ m/\A\s*[:]($regex)\s*\z/) {
+                    my $cmd = $1;
+                    $param{$name} = ($cmd =~ m/\A\s*$no_re/) ? 0 : 1;
                     splice(@list, $x, 1);
                     $x--;
                     next LIST;
@@ -238,8 +242,6 @@ sub _parse_params {
             }
         }
         $param{DIRS} = \@list;
-        $param{LIB_DIR} = '';
-        $param{HALT_ON_FIND} = 0;
     }
 
     # If a parameter value was not set, set a default value.  If a parameter
@@ -248,28 +250,44 @@ sub _parse_params {
     if(not defined $param{DIRS}) {
         $param{DIRS} = \@{$Default{DIRS}};
     }
-    if((defined $params{DIRS}) && (ref($param{DIRS}) ne 'ARRAY'))
-    {
-        carp("The DIRS parameter is expecting an array reference!");
+    if((defined $params{DIRS}) && (ref($param{DIRS}) ne 'ARRAY')) {
+        carp("The DIRS parameter is expecting an array reference.");
         if(ref($params{DIRS}) eq '') {
+            carp("The DIRS parameter is fixable, converting from scalar.");
             my @temp = ( $params{DIRS}, );
             $params{DIRS} = \@temp;
         }
         elsif(ref($params{DIRS}) eq 'HASH') {
+            carp("The DIRS parameter is fixable, converting from hash.");
             my @temp = sort keys %{$param{DIRS}};
             $param{DIRS} = \@temp;
         }
         else {
+            carp("The DIRS parameter is not fixable, reverting to default.");
             $param{DIRS} = \@{$Default{DIRS}};
         }
     }
     if((defined $param{DIRS}) && (ref($param{DIRS}) eq 'ARRAY')) {
+        my $bad_dir_param = 0;
         for(my $x = 0; $x <= $#{$param{DIRS}}; $x++) {
             if(not defined $param{DIRS}->[$x]) {
-                carp( "Undefined value in DIRS parameter at position $x " .
-                      "(zero-based)!" );
-                next;
+                carp( "Undefined value at position $x " .
+                      "in DIRS parameter (zero-based)." );
+                $bad_dir_param = 1;
             }
+            elsif(ref($param{DIRS}->[$x]) ne '') {
+                carp( "Value is not a scalar at position $x " .
+                      "in DIRS parameter (zero-based)." );
+                $bad_dir_param = 1;
+            }
+            elsif(length($param{DIRS}->[$x]) < 1) {
+                carp( "Empty value at position $x " .
+                      "in DIRS parameter (zero-based)." );
+                $bad_dir_param = 1;
+            }
+        }
+        if($bad_dir_param) {  # The above errors are not fixable... :-/
+            croak("Too many errors in DIRS parameter.");
         }
     }
     if(not defined $param{LIB_DIR}) {
@@ -447,6 +465,40 @@ sub _find_lib_dirs
     return wantarray ? @lib_dirs : \@lib_dirs;
 }
 
+sub _find_INC_dirs {
+    my $dirs_ref = shift;
+
+    my @inc_dirs = ();
+    foreach my $dir (@{$dirs_ref}) {
+        next if(not defined $dir);
+        next if((not -e $dir) || (not -d $dir) || (not -r $dir));
+        push(@inc_dirs, $dir);
+        # Add the library tree under each library directory we found to the
+        # INC array.
+        my @d = _get_dirs($dir);
+        foreach (@d) {
+            if((-e $_) && (-d $_) && (-r $_)) {
+              push(@inc_dirs, $_);
+            }
+        }
+        my %root = _get_path_hash($dir);
+        my $interp_dir = catdir( $root{'volume'}, @{$root{'dirs'}},
+                                 $Interpreter_Dir_Name, _find_perl_type() );
+        if((-e $interp_dir) && (-d $interp_dir) && (-r $interp_dir)) {
+            # If we found a directory which differentiates the Perl library
+            # by interpreter type, then add the library tree under the
+            # directory which matches our interpreter to the INC array.
+            my @d = _get_dirs($interp_dir);
+            foreach (@d) {
+                if((-e $_) && (-d $_) && (-r $_)) {
+                    push(@inc_dirs, $_);
+                }
+            }
+        }
+    }
+
+    return wantarray ? @inc_dirs : \@inc_dirs;
+}
 
 sub _get_path_hash {
     my $path = shift;
@@ -464,9 +516,8 @@ sub _get_dirs {
     my $path = shift;
 
     my %dir = _get_path_hash($path);
-    my $d = catdir($dir{'volume'}, @{$dir{'dirs'}});
-    my @lib = ( catdir($d, 'lib'), );
-    my @site_lib = ( catdir($d, 'site', 'lib'), )
+    my @lib = ( catdir($dir{'volume'}, @{$dir{'dirs'}}, 'lib'), );
+    my @site_lib = ( catdir($dir{'volume'}, @{$dir{'dirs'}}, 'site', 'lib'), )
     foreach my $ver (@inc_version_list) {
         if((defined $ver) && (length($ver) >= 1)) {
             push @lib, catdir($lib[0], $ver);
@@ -673,7 +724,10 @@ For example:
                 );
 
 The above incantation will look in F</home/cschwenz/foo/> and
-F</home/cschwenz/bar/> for a directory named F<custom_perl_lib>.  If said directory is found (i.e., F</home/cschwenz/foo/custom_perl_lib/>), then C<lib::tree> will add the directory to the C<@INC> array and look for a directory named F<PerlInterpreterName> inside the recently added directory.
+F</home/cschwenz/bar/> for a directory named F<custom_perl_lib>.  If said
+directory is found (i.e., F</home/cschwenz/foo/custom_perl_lib/>), then
+C<lib::tree> will add the directory to the C<@INC> array and look for a
+directory named F<PerlInterpreterName> inside the recently added directory.
 
 =head1 SUBROUTINES
 
@@ -687,7 +741,7 @@ Called when you say C<no lib::tree ( ... );>
 
 =head1 AUTHOR
 
-Calvin Schwenzfeier, C<< <calvin.schwenzfeier at gmail.com> >>
+Calvin Schwenzfeier, C<< <calvin dot schwenzfeier at gmail.com> >>
 
 =head1 BUGS
 
