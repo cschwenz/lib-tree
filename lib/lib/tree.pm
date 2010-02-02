@@ -577,7 +577,10 @@ sub _find_perl_type {
     }
 
     if($perl_type !~ m/Perl\z/) {
-        $perl_type .= 'Perl';
+        $perl_type = "${perl_type}Perl";
+    }
+    if($perl_type !~ m/\A\Q$osname\E[\-]/) {
+        $perl_type = "${osname}-${perl_type}";
     }
     if($DEBUG) { print STDERR "***DEBUG: The Perl type is '$perl_type'.\n"; }
 
@@ -648,8 +651,8 @@ Version 0.01
 This pragma allows you to specify one or more directories to search for the
 given library directory name to be added to the C<@INC> array.  Also, based on
 Perl interpreter type and version, this pragma will add the correct
-sub-directories within the given library directory (but only if said directory
-is found).
+sub-directories within the given library directory (but only if said directories
+are found).
 
   # Called with a hash:
   use lib::tree ( DIRS =>  [ '/some/directory/',
@@ -716,7 +719,117 @@ is found).
   #         * HALT_ON_FIND defaults to 0 (otherwise, only the first matching
   #           directory would be added to the INC array).
 
-For example:
+=head1 USAGE
+
+Upon finding a directory whose name matches the C<LIB_DIR> parameter in one of
+the specified directories, the full path to that directory (i.e.,
+F</B<{specified_dir}>/B<{custom_lib}>/>)is added to the C<@INC> array as well as
+the following directories within the newly added directory (but only if they
+exist and are readable):
+
+=over
+
+=item *
+
+F<.../lib/>
+
+=item *
+
+F<.../lib/B<{previous_version(s)}>/>
+
+=item *
+
+F<.../lib/B<{archname}>/>
+
+=item *
+
+F<.../lib/B<{archname64}>/>
+
+=item *
+
+F<.../lib/B<{major_version}>/>
+
+=item *
+
+F<.../lib/B<{major_version}>/B<{archname}>/>
+
+=item *
+
+F<.../lib/B<{major_version}>/B<{archname64}>/>
+
+=item *
+
+F<.../lib/B<{version}>/>
+
+=item *
+
+F<.../lib/B<{version}>/B<{archname}>/>
+
+=item *
+
+F<.../lib/B<{version}>/B<{archname64}>/>
+
+=item *
+
+F<.../site/lib/>
+
+=item *
+
+F<.../site/lib/B<{previous_version(s)}>/>
+
+=item *
+
+F<.../site/lib/B<{archname}>/>
+
+=item *
+
+F<.../site/lib/B<{archname64}>/>
+
+=item *
+
+F<.../site/lib/B<{major_version}>/>
+
+=item *
+
+F<.../site/lib/B<{major_version}>/B<{archname}>/>
+
+=item *
+
+F<.../site/lib/B<{major_version}>/B<{archname64}>/>
+
+=item *
+
+F<.../site/lib/B<{version}>/>
+
+=item *
+
+F<.../site/lib/B<{version}>/B<{archname}>/>
+
+=item *
+
+F<.../site/lib/B<{version}>/B<{archname64}>/>
+
+=back
+
+Additionally, C<lib::tree> looks for a directory named
+F<.../B<{custom_lib}>/PerlInterpreterName/B<{os_name}>-B<{perl_type}>/>. If such
+a directory is found, then that directory (as well as any directories underneath
+it which match the above list) are added to the C<@INC> array.  This is done so
+a single custom library may contain binary Perl modules for different
+interpreters.  For example, a single custom library loaded via C<lib::tree>
+could support ActiveState Perl, Vanilla Perl, the Perl interpreter at
+F</usr/bin/perl>, and the Perl interpreter at F</usr/local/bin> as long as the
+directories F<.../B<{custom_lib}>/PerlInterpreterName/MSWin32-ActiveStatePerl/>,
+F<.../B<{custom_lib}>/PerlInterpreterName/MSWin32-VanillaPerl/>,
+F<.../B<{custom_lib}>/PerlInterpreterName/cygwin-UsrBinPerl/>, and
+F<.../B<{custom_lib}>/PerlInterpreterName/linux-UsrLocalPerl/> were present and
+readable.
+
+Please note, definitively identifying different Perl interpreters is an ongoing subject of research.
+
+=head1 EXAMPLES
+
+An example:
 
   use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
                              '/home/cschwenz/bar/' ],
@@ -724,10 +837,7 @@ For example:
                 );
 
 The above incantation will look in F</home/cschwenz/foo/> and
-F</home/cschwenz/bar/> for a directory named F<custom_perl_lib>.  If said
-directory is found (i.e., F</home/cschwenz/foo/custom_perl_lib/>), then
-C<lib::tree> will add the directory to the C<@INC> array and look for a
-directory named F<PerlInterpreterName> inside the recently added directory.
+F</home/cschwenz/bar/> for a directory named F<custom_perl_lib>.
 
 =head1 SUBROUTINES
 

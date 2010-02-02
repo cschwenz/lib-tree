@@ -1,0 +1,318 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>lib::tree</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:" />
+</head>
+
+<body style="background-color: white">
+<table border="0" width="100%" cellspacing="0" cellpadding="3">
+<tr><td class="block" style="background-color: #cccccc" valign="middle">
+<big><strong><span class="block">&nbsp;lib::tree</span></strong></big>
+</td></tr>
+</table>
+
+<p><a name="__index__"></a></p>
+<!-- INDEX BEGIN -->
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#version">VERSION</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<li><a href="#usage">USAGE</a></li>
+	<li><a href="#examples">EXAMPLES</a></li>
+	<li><a href="#subroutines">SUBROUTINES</a></li>
+	<ul>
+
+		<li><a href="#import">import</a></li>
+		<li><a href="#unimport">unimport</a></li>
+	</ul>
+
+	<li><a href="#author">AUTHOR</a></li>
+	<li><a href="#bugs">BUGS</a></li>
+	<li><a href="#support">SUPPORT</a></li>
+	<li><a href="#acknowledgements">ACKNOWLEDGEMENTS</a></li>
+	<li><a href="#license_and_copyright">LICENSE AND COPYRIGHT</a></li>
+</ul>
+<!-- INDEX END -->
+
+<hr />
+<p>
+</p>
+<hr />
+<h1><a name="name">NAME</a></h1>
+<p>lib::tree - Add directory trees to the <code>@INC</code> array at compile time.</p>
+<p>
+</p>
+<hr />
+<h1><a name="version">VERSION</a></h1>
+<p>Version 0.01</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<p>This pragma allows you to specify one or more directories to search for the
+given library directory name to be added to the <code>@INC</code> array.  Also, based on
+Perl interpreter type and version, this pragma will add the correct
+sub-directories within the given library directory (but only if said directories
+are found).</p>
+<pre>
+  # Called with a hash:
+  use lib::tree ( DIRS =&gt;  [ '/some/directory/',
+                             'another/directory/',
+                             '/yet/another/directory/with/*/globbing/',
+                             'more/{dir,directory}/glob?/fun/',
+                           ], # Accepts absolute/relative directories, with or
+                              # without globbing.  (Defaults to the directory of
+                              # the currently running script; i.e., if the full
+                              # path to the script which invoked lib::tree is
+                              # '/home/foo/scripts/bar.pl' then the default
+                              # will be '/home/foo/scripts/')
+                  LIB_DIR =&gt; 'customLibDirName', # This should be *just* the
+                                                 # name of the directory (i.e.,
+                                                 # neither a relative nor an
+                                                 # absolute path; defaults to
+                                                 # 'libperl')!
+                  DEPTH_FIRST =&gt; 0, # If this is false, then lib::tree will do a
+                                    # breadth-first search of the directories
+                                    # listed by the DIRS parameter.  (Defaults
+                                    # to 1; this allows the order of directories
+                                    # specified in the DIRS parameter to be
+                                    # honored)
+                  HALT_ON_FIND =&gt; 1, # Do we want to stop searching directories
+                                     # for the given LIB_DIR when we find our
+                                     # first match?  (Defaults to 1; normally
+                                     # you do not want multiple LIB_DIRs found.)
+                  DELTA =&gt; 2, # How many directories up and down the directory
+                              # tree from a given location in said tree are we
+                              # to search for a LIB_DIR?  (Defaults to 0; that
+                              # is, we normally do *not* look outside of the
+                              # directories listed by the DIRS parameter)
+                );
+  
+  
+  # Called with a list which begins with an array reference:
+  use lib::tree ( [ '/some/directory/',
+                    'another/directory/',
+                    '/yet/another/directory/with/*/globbing/',
+                    'more/{dir,directory}/glob?/fun/',
+                  ], # The DIRS parameter.
+                  'customLibDirName', # The LIB_DIR parameter.
+                  0, # The DEPTH_FIRST parameter.
+                  1, # The HALT_ON_FIND parameter.
+                  2, # The DELTA parameter.
+                );
+  # PLEASE NOTE:
+  #     Order matters! If you want to leave a value at the default setting but
+  #     want to change the value of something later in the list, use the
+  #     undefined value as a placeholder for the default values you do no want
+  #     to change.
+  
+  
+  # Called with a simple list:
+  use lib::tree ( '/some/directory/',
+                  'another/directory/',
+                  '/yet/another/directory/with/*/globbing/',
+                  'more/{dir,directory}/glob?/fun/',
+                );
+  # PLEASE NOTE:
+  #     If lib::tree is called with a simple list, two defaults change:
+  #         * LIB_DIR defaults to '' (i.e., everything that matches what is
+  #           listed will be added to the @INC array).
+  #         * HALT_ON_FIND defaults to 0 (otherwise, only the first matching
+  #           directory would be added to the INC array).</pre>
+<p>
+</p>
+<hr />
+<h1><a name="usage">USAGE</a></h1>
+<p>Upon finding a directory whose name matches the <code>LIB_DIR</code> parameter in one of
+the specified directories, the full path to that directory (i.e.,
+<em>/<strong>{specified_dir}</strong>/<strong>{custom_lib}</strong>/</em>)is added to the <code>@INC</code> array as well as
+the following directories within the newly added directory (but only if they
+exist and are readable):</p>
+<ul>
+<li>
+<p><em>.../lib/</em></p>
+</li>
+<li>
+<p><em>.../lib/<strong>{previous_version(s)}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../lib/<strong>{archname}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../lib/<strong>{archname64}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../lib/<strong>{major_version}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../lib/<strong>{major_version}</strong>/<strong>{archname}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../lib/<strong>{major_version}</strong>/<strong>{archname64}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../lib/<strong>{version}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../lib/<strong>{version}</strong>/<strong>{archname}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../lib/<strong>{version}</strong>/<strong>{archname64}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../site/lib/</em></p>
+</li>
+<li>
+<p><em>.../site/lib/<strong>{previous_version(s)}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../site/lib/<strong>{archname}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../site/lib/<strong>{archname64}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../site/lib/<strong>{major_version}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../site/lib/<strong>{major_version}</strong>/<strong>{archname}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../site/lib/<strong>{major_version}</strong>/<strong>{archname64}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../site/lib/<strong>{version}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../site/lib/<strong>{version}</strong>/<strong>{archname}</strong>/</em></p>
+</li>
+<li>
+<p><em>.../site/lib/<strong>{version}</strong>/<strong>{archname64}</strong>/</em></p>
+</li>
+</ul>
+<p>Additionally, <code>lib::tree</code> looks for a directory named
+<em>.../<strong>{custom_lib}</strong>/PerlInterpreterName/<strong>{os_name}</strong>-<strong>{perl_type}</strong>/</em>. If such
+a directory is found, then that directory (as well as any directories underneath
+it which match the above list) are added to the <code>@INC</code> array.  This is done so
+a single custom library may contain binary Perl modules for different
+interpreters.  For example, a single custom library loaded via <code>lib::tree</code>
+could support ActiveState Perl, Vanilla Perl, the Perl interpreter at
+<em>/usr/bin/perl</em>, and the Perl interpreter at <em>/usr/local/bin</em> as long as the
+directories <em>.../<strong>{custom_lib}</strong>/PerlInterpreterName/MSWin32-ActiveStatePerl/</em>,
+<em>.../<strong>{custom_lib}</strong>/PerlInterpreterName/MSWin32-VanillaPerl/</em>,
+<em>.../<strong>{custom_lib}</strong>/PerlInterpreterName/cygwin-UsrBinPerl/</em>, and
+<em>.../<strong>{custom_lib}</strong>/PerlInterpreterName/linux-UsrLocalPerl/</em> were present and
+readable.</p>
+<p>Please note, definitively identifying different Perl interpreters is an ongoing subject of research.</p>
+<p>
+</p>
+<hr />
+<h1><a name="examples">EXAMPLES</a></h1>
+<p>An example:</p>
+<pre>
+  use lib::tree ( DIRS =&gt;  [ '/home/cschwenz/foo/',
+                             '/home/cschwenz/bar/' ],
+                  LIB_DIR =&gt; 'custom_perl_lib',
+                );</pre>
+<p>The above incantation will look in <em>/home/cschwenz/foo/</em> and
+<em>/home/cschwenz/bar/</em> for a directory named <em>custom_perl_lib</em>.</p>
+<p>
+</p>
+<hr />
+<h1><a name="subroutines">SUBROUTINES</a></h1>
+<p>
+</p>
+<h2><a name="import">import</a></h2>
+<p>Called when you say <code>use lib::tree ( ... );</code></p>
+<p>
+</p>
+<h2><a name="unimport">unimport</a></h2>
+<p>Called when you say <code>no lib::tree ( ... );</code></p>
+<p>
+</p>
+<hr />
+<h1><a name="author">AUTHOR</a></h1>
+<p>Calvin Schwenzfeier, <code>&lt;calvin dot schwenzfeier at gmail.com&gt;</code></p>
+<p>
+</p>
+<hr />
+<h1><a name="bugs">BUGS</a></h1>
+<p>Please report any bugs or feature requests to
+<code>&lt;bug-lib-tree at rt.cpan.org&gt;</code>, or through the web interface at
+<a href="http://rt.cpan.org/NoAuth/ReportBug.html?Queue=lib-tree">http://rt.cpan.org/NoAuth/ReportBug.html</a>.  I will be notified,
+and then you'll automatically be notified of progress on your bug as I make
+changes.</p>
+<p>
+</p>
+<hr />
+<h1><a name="support">SUPPORT</a></h1>
+<p>You can find documentation for this module with the perldoc command.</p>
+<pre>
+    perldoc lib::tree</pre>
+<p>You can also look for information at:</p>
+<ul>
+<li><strong><a name="item_rt_3a_cpan_27s_request_tracker">RT: CPAN's request tracker</a></strong>
+
+<p><a href="http://rt.cpan.org/NoAuth/Bugs.html?Dist=lib-tree">http://rt.cpan.org/NoAuth/Bugs.html</a></p>
+</li>
+<li><strong><a name="item_annocpan_3a_annotated_cpan_documentation">AnnoCPAN: Annotated CPAN documentation</a></strong>
+
+<p><a href="http://annocpan.org/dist/lib-tree">http://annocpan.org/dist/lib-tree</a></p>
+</li>
+<li><strong><a name="item_cpan_ratings">CPAN Ratings</a></strong>
+
+<p><a href="http://cpanratings.perl.org/d/lib-tree">http://cpanratings.perl.org/d/lib-tree</a></p>
+</li>
+<li><strong><a name="item_search_cpan">Search CPAN</a></strong>
+
+<p><a href="http://search.cpan.org/dist/lib-tree/">http://search.cpan.org/dist/lib-tree/</a></p>
+</li>
+</ul>
+<p>
+</p>
+<hr />
+<h1><a name="acknowledgements">ACKNOWLEDGEMENTS</a></h1>
+<p>&nbsp;&nbsp;&nbsp; And again Jesus spoke to them in parables, saying, &ldquo;The Kingdom of
+Heaven may be compared to a king who gave a wedding feast for his son, and sent
+his servants to call those who were invited to the wedding feast, but they
+refused to come.&nbsp; So he sent other servants, saying, &lsquo;Tell those who
+are invited: &laquo;See, I have prepared my banquet; my bulls and my fattened
+cattle have been slaughtered, and everything is ready.  Come to the wedding
+feast!&raquo;&rsquo;&nbsp; But they paid no attention and went off, one to his
+farm, another to his business; while the rest seized his servants, mistreated
+them, and killed them.&nbsp; The king was furious and sent his soldiers, who
+killed those murderers and burned down their city.&nbsp; Then he said to his
+servants, &lsquo;The wedding feast is ready, but the ones who were invited did
+not deserve it.&nbsp; So go out to the street&#8209;corners and invite to the
+banquet as many as you find.&rsquo;&nbsp; The servants went out into the streets
+and gathered all the people they could find, both bad and good; and the wedding
+hall was filled with guests.&nbsp; But when the king came in to look at the
+guests, he saw there a man who was not dressed for a wedding; so he asked him,
+&lsquo;Friend, how did you get in here without wedding clothes?&rsquo;&nbsp; The
+man was speechless.&nbsp; Then the king said to the attendants, &lsquo;Bind him
+hand and foot, and throw him outside into the dark!&rsquo;&nbsp; In that place
+people will wail and grind their teeth; for many are invited, but few are
+chosen.&rdquo;</p>
+<p>
+</p>
+<hr />
+<h1><a name="license_and_copyright">LICENSE AND COPYRIGHT</a></h1>
+<p>Copyright 2010 Calvin Schwenzfeier.</p>
+<p>This program is free software; you can redistribute it and/or modify it
+under the terms of either: the GNU General Public License as published
+by the Free Software Foundation; or the Artistic License.</p>
+<p>See <a href="http://dev.perl.org/licenses/">http://dev.perl.org/licenses/</a> for more information.</p>
+<table border="0" width="100%" cellspacing="0" cellpadding="3">
+<tr><td class="block" style="background-color: #cccccc" valign="middle">
+<big><strong><span class="block">&nbsp;lib::tree</span></strong></big>
+</td></tr>
+</table>
+
+</body>
+
+</html>
