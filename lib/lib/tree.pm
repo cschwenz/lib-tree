@@ -816,20 +816,69 @@ F<.../B<{custom_lib}>/PerlInterpreterName/B<{os_name}>-B<{perl_type}>/>. If such
 a directory is found, then that directory (as well as any directories underneath
 it which match the above list) are added to the C<@INC> array.  This is done so
 a single custom library may contain binary Perl modules for different
-interpreters.  For example, a single custom library loaded via C<lib::tree>
-could support ActiveState Perl, Vanilla Perl, the Perl interpreter at
-F</usr/bin/perl>, and the Perl interpreter at F</usr/local/bin> as long as the
-directories F<.../B<{custom_lib}>/PerlInterpreterName/MSWin32-ActiveStatePerl/>,
-F<.../B<{custom_lib}>/PerlInterpreterName/MSWin32-VanillaPerl/>,
-F<.../B<{custom_lib}>/PerlInterpreterName/cygwin-UsrBinPerl/>, and
-F<.../B<{custom_lib}>/PerlInterpreterName/linux-UsrLocalPerl/> were present and
-readable.
+interpreters.
 
-Please note, definitively identifying different Perl interpreters is an ongoing subject of research.
+For example, a single custom library loaded via C<lib::tree>
+could support the following Perl interpreters if the associated directories were
+present and readable:
+
+=over
+
+=item *
+
+ActiveState Perl on Windows supported via
+F<.../B<{custom_lib}>/PerlInterpreterName/MSWin32-ActiveStatePerl/>
+
+=item *
+
+Strawberry Perl on Windows supported via
+F<.../B<{custom_lib}>/PerlInterpreterName/MSWin32-StrawberryPerl/>
+
+=item *
+
+Vanilla Perl on Windows supported via
+F<.../B<{custom_lib}>/PerlInterpreterName/MSWin32-VanillaPerl/>
+
+=item *
+
+F</usr/bin/perl> on Cygwin supported via
+F<.../B<{custom_lib}>/PerlInterpreterName/cygwin-UsrBinPerl/>
+
+=item *
+
+F</usr/local/bin/perl> on Linux supported via
+F<.../B<{custom_lib}>/PerlInterpreterName/linux-UsrLocalPerl/>
+
+=back
+
+Please note, definitively identifying different Perl interpreters is an ongoing
+subject of research (if C<lib::tree> is I<not> correctly identifying your
+platform please suggest a method of doing so to the author/maintainer of this
+module).  Also, the F<B<{os_name}>-> prefix is needed because of ActiveState's
+borken install which does not put binary Perl modules in the canonical location
+(that is, in any of the above mentioned F<.../B<{archname}>/> or
+F<.../B<{archname64}>/> directories).
+
 
 =head1 EXAMPLES
 
-An example:
+B<Example 1:>
+
+  use lib::tree;
+
+The above incantation will look in F</B<{full_path_to_script_directory}>/> (or whatever the C<$lib::tree::Default{DIRS}> array reference is set to) for a directory named F<libperl> (or whatever the C<$lib::tree::Default{LIB_DIR}> scalar value is set to).
+
+B<Example 2:>
+
+  use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
+                             '/home/cschwenz/bar/' ],
+                );
+
+The above incantation will look in F</home/cschwenz/foo/> and
+F</home/cschwenz/bar/> for a directory named F<libperl> (or whatever the C<$lib::tree::Default{LIB_DIR}> scalar value is set to).
+
+
+B<Example 3:>
 
   use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
                              '/home/cschwenz/bar/' ],
@@ -838,6 +887,30 @@ An example:
 
 The above incantation will look in F</home/cschwenz/foo/> and
 F</home/cschwenz/bar/> for a directory named F<custom_perl_lib>.
+
+
+B<Example 4:>
+
+  use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
+                             '/home/cschwenz/bar/' ],
+                  LIB_DIR => 'custom_perl_lib',
+                  DELTA => 3,
+                );
+
+The above incantation will look up/down the directory tree to a max of three
+directories from the starting locations of F</home/cschwenz/foo/> and
+F</home/cschwenz/bar/> for a directory named F<custom_perl_lib>.
+
+That is, the directories F</home/cschwenz/foo/>, F</home/cschwenz/foo/../>,
+F</home/cschwenz/foo/*/>, F</home/cschwenz/foo/../../>,
+F</home/cschwenz/foo/*/*/>, F</home/cschwenz/foo/../../../>,
+F</home/cschwenz/foo/*/*/*/>, F</home/cschwenz/bar/>, F</home/cschwenz/bar/../>,
+F</home/cschwenz/bar/*/>, F</home/cschwenz/bar/../../>,
+F</home/cschwenz/bar/*/*/>, F</home/cschwenz/bar/../../../>, and
+F</home/cschwenz/bar/*/*/*/> will be searched for a directory named
+F<custom_perl_lib>.  The search will halt upon finding the first instance of a
+directory named F<custom_perl_lib>.
+
 
 =head1 SUBROUTINES
 
@@ -849,9 +922,11 @@ Called when you say C<use lib::tree ( ... );>
 
 Called when you say C<no lib::tree ( ... );>
 
+
 =head1 AUTHOR
 
 Calvin Schwenzfeier, C<< <calvin dot schwenzfeier at gmail.com> >>
+
 
 =head1 BUGS
 
@@ -926,42 +1001,6 @@ by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
 
-
-=cut
-
-=pod
-
-=begin COMMENT
-
-.../lib/
-.../lib/{$inc_version}/
-.../lib/${archname}/
-.../lib/${archname64}/
-.../lib/${major_version}/
-.../lib/${major_version}/${archname}/
-.../lib/${major_version}/${archname64}/
-.../lib/${version}/
-.../lib/${version}/${archname}/
-.../lib/${version}/${archname64}/
-.../site/lib/
-.../site/lib/{$inc_version}/
-.../site/lib/${archname}/
-.../site/lib/${archname64}/
-.../site/lib/${major_version}/
-.../site/lib/${major_version}/${archname}/
-.../site/lib/${major_version}/${archname64}/
-.../site/lib/${version}/
-.../site/lib/${version}/${archname}/
-.../site/lib/${version}/${archname64}/
-
-.../{custom_lib}/
-.../{custom_lib}/PerlInterpreterName/ActiveStatePerl/
-.../{custom_lib}/PerlInterpreterName/StrawberryPerl/
-.../{custom_lib}/PerlInterpreterName/VanillaPerl/
-.../{custom_lib}/PerlInterpreterName/UsrBinPerl/
-.../{custom_lib}/PerlInterpreterName/UsrLocalPerl/
-
-=end COMMENT
 
 =cut
 
