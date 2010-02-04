@@ -31,6 +31,7 @@
 		<li><a href="#unimport">unimport</a></li>
 	</ul>
 
+	<li><a href="#private_subroutines">PRIVATE SUBROUTINES</a></li>
 	<li><a href="#author">AUTHOR</a></li>
 	<li><a href="#bugs">BUGS</a></li>
 	<li><a href="#support">SUPPORT</a></li>
@@ -63,70 +64,70 @@ Perl interpreter type and version, this pragma will add the correct
 sub-directories within the given library directory (but only if said directories
 are found).</p>
 <pre>
-  # Called with a hash:
-  use lib::tree ( DIRS =&gt;  [ '/some/directory/',
-                             'another/directory/',
-                             '/yet/another/directory/with/*/globbing/',
-                             'more/{dir,directory}/glob?/fun/',
-                           ], # Accepts absolute/relative directories, with or
-                              # without globbing.  (Defaults to the directory of
-                              # the currently running script; i.e., if the full
-                              # path to the script which invoked lib::tree is
-                              # '/home/foo/scripts/bar.pl' then the default
-                              # will be '/home/foo/scripts/')
-                  LIB_DIR =&gt; 'customLibDirName', # This should be *just* the
-                                                 # name of the directory (i.e.,
-                                                 # neither a relative nor an
-                                                 # absolute path; defaults to
-                                                 # 'libperl')!
-                  DEPTH_FIRST =&gt; 0, # If this is false, then lib::tree will do a
-                                    # breadth-first search of the directories
-                                    # listed by the DIRS parameter.  (Defaults
-                                    # to 1; this allows the order of directories
-                                    # specified in the DIRS parameter to be
-                                    # honored)
-                  HALT_ON_FIND =&gt; 1, # Do we want to stop searching directories
-                                     # for the given LIB_DIR when we find our
-                                     # first match?  (Defaults to 1; normally
-                                     # you do not want multiple LIB_DIRs found.)
-                  DELTA =&gt; 2, # How many directories up and down the directory
-                              # tree from a given location in said tree are we
-                              # to search for a LIB_DIR?  (Defaults to 0; that
-                              # is, we normally do *not* look outside of the
-                              # directories listed by the DIRS parameter)
-                );
-  
-  
-  # Called with a list which begins with an array reference:
-  use lib::tree ( [ '/some/directory/',
+    # Called with a hash:
+    use lib::tree ( DIRS =&gt;  [ '/some/directory/',
+                               'another/directory/',
+                               '/yet/another/directory/with/*/globbing/',
+                               'more/{dir,directory}/glob?/fun/',
+                             ], # Accepts absolute/relative directories, with or
+                                # without globbing.  (Defaults to the directory
+                                # of the currently running script; i.e., if the
+                                # full path to the script which invoked
+                                # lib::tree is '/home/foo/scripts/bar.pl' then
+                                # the default will be '/home/foo/scripts/')
+                    LIB_DIR =&gt; 'libName', # This should be *just* the name of
+                                          # the directory (i.e., neither a
+                                          # relative nor an absolute path;
+                                          # defaults to 'libperl')!
+                    DEPTH_FIRST =&gt; 0, # If this is false, then lib::tree will do
+                                      # a breadth-first search of the
+                                      # directories listed by the DIRS
+                                      # parameter.  (Defaults to 1; this allows
+                                      # the order of directories specified in
+                                      # the DIRS parameter to be honored)
+                    HALT_ON_FIND =&gt; 1, # Do we want to stop searching
+                                       # directories for the given LIB_DIR when
+                                       # we find our first match?  (Defaults to
+                                       # 1; normally you do not want multiple
+                                       # LIB_DIRs found.)
+                    DELTA =&gt; 2, # How many directories up and down the directory
+                                # tree from a given location in said tree are we
+                                # to search for a LIB_DIR?  (Defaults to 0; that
+                                # is, we normally do *not* look outside of the
+                                # directories listed by the DIRS parameter)
+                  );
+    
+    
+    # Called with a list which begins with an array reference:
+    use lib::tree ( [ '/some/directory/',
+                      'another/directory/',
+                      '/yet/another/directory/with/*/globbing/',
+                      'more/{dir,directory}/glob?/fun/',
+                    ], # The DIRS parameter.
+                    'libName', # The LIB_DIR parameter.
+                    0, # The DEPTH_FIRST parameter.
+                    1, # The HALT_ON_FIND parameter.
+                    2, # The DELTA parameter.
+                  );
+    # PLEASE NOTE:
+    #     Order matters! If you want to leave a value at the default setting but
+    #     want to change the value of something later in the list, use the
+    #     undefined value as a placeholder for the default values you do no want
+    #     to change.
+    
+    
+    # Called with a simple list:
+    use lib::tree ( '/some/directory/',
                     'another/directory/',
                     '/yet/another/directory/with/*/globbing/',
                     'more/{dir,directory}/glob?/fun/',
-                  ], # The DIRS parameter.
-                  'customLibDirName', # The LIB_DIR parameter.
-                  0, # The DEPTH_FIRST parameter.
-                  1, # The HALT_ON_FIND parameter.
-                  2, # The DELTA parameter.
-                );
-  # PLEASE NOTE:
-  #     Order matters! If you want to leave a value at the default setting but
-  #     want to change the value of something later in the list, use the
-  #     undefined value as a placeholder for the default values you do no want
-  #     to change.
-  
-  
-  # Called with a simple list:
-  use lib::tree ( '/some/directory/',
-                  'another/directory/',
-                  '/yet/another/directory/with/*/globbing/',
-                  'more/{dir,directory}/glob?/fun/',
-                );
-  # PLEASE NOTE:
-  #     If lib::tree is called with a simple list, two defaults change:
-  #         * LIB_DIR defaults to '' (i.e., everything that matches what is
-  #           listed will be added to the @INC array).
-  #         * HALT_ON_FIND defaults to 0 (otherwise, only the first matching
-  #           directory would be added to the INC array).</pre>
+                  );
+    # PLEASE NOTE:
+    #     If lib::tree is called with a simple list, two defaults change:
+    #         * LIB_DIR defaults to '' (i.e., everything that matches what is
+    #           listed will be added to the @INC array).
+    #         * HALT_ON_FIND defaults to 0 (otherwise, only the first matching
+    #           directory would be added to the INC array).</pre>
 <p>
 <a href="#__index__"><small>Back to top</small></a>
 </p>
@@ -135,75 +136,46 @@ are found).</p>
 <p>Upon finding a directory whose name matches the <code>LIB_DIR</code> parameter in one of
 the specified directories, the full path to that directory (i.e.,
 <em>/<strong>{specified_dir}</strong>/<strong>{custom_lib}</strong>/</em>)is added to the <code>@INC</code> array as well as
-the following directories within the newly added directory (but only if they
-exist and are readable):</p>
+the following directories (replace <em><strong>{lib_dir}</strong></em> with <em>lib</em> and <em>site/lib</em>)
+within the newly added directory (but only if said directories exist and are
+readable):</p>
 <ul>
 <li>
-<p><em>.../lib/</em></p>
+<p><em>.../<strong>{lib_dir}</strong>/</em></p>
 </li>
 <li>
-<p><em>.../lib/<strong>{previous_version(s)}</strong>/</em></p>
+<p><em>.../<strong>{lib_dir}</strong>/<strong>{previous_version(s)}</strong>/</em></p>
 </li>
 <li>
-<p><em>.../lib/<strong>{archname}</strong>/</em></p>
+<p><em>.../<strong>{lib_dir}</strong>/<strong>{archname}</strong>/</em></p>
 </li>
 <li>
-<p><em>.../lib/<strong>{archname64}</strong>/</em></p>
+<p><em>.../<strong>{lib_dir}</strong>/<strong>{archname64}</strong>/</em></p>
 </li>
 <li>
-<p><em>.../lib/<strong>{major_version}</strong>/</em></p>
+<p><em>.../<strong>{lib_dir}</strong>/<strong>{major_version}</strong>/</em></p>
 </li>
 <li>
-<p><em>.../lib/<strong>{major_version}</strong>/<strong>{archname}</strong>/</em></p>
+<p><em>.../<strong>{lib_dir}</strong>/<strong>{major_version}</strong>/<strong>{archname}</strong>/</em></p>
 </li>
 <li>
-<p><em>.../lib/<strong>{major_version}</strong>/<strong>{archname64}</strong>/</em></p>
+<p><em>.../<strong>{lib_dir}</strong>/<strong>{major_version}</strong>/<strong>{archname64}</strong>/</em></p>
 </li>
 <li>
-<p><em>.../lib/<strong>{version}</strong>/</em></p>
+<p><em>.../<strong>{lib_dir}</strong>/<strong>{version}</strong>/</em></p>
 </li>
 <li>
-<p><em>.../lib/<strong>{version}</strong>/<strong>{archname}</strong>/</em></p>
+<p><em>.../<strong>{lib_dir}</strong>/<strong>{version}</strong>/<strong>{archname}</strong>/</em></p>
 </li>
 <li>
-<p><em>.../lib/<strong>{version}</strong>/<strong>{archname64}</strong>/</em></p>
-</li>
-<li>
-<p><em>.../site/lib/</em></p>
-</li>
-<li>
-<p><em>.../site/lib/<strong>{previous_version(s)}</strong>/</em></p>
-</li>
-<li>
-<p><em>.../site/lib/<strong>{archname}</strong>/</em></p>
-</li>
-<li>
-<p><em>.../site/lib/<strong>{archname64}</strong>/</em></p>
-</li>
-<li>
-<p><em>.../site/lib/<strong>{major_version}</strong>/</em></p>
-</li>
-<li>
-<p><em>.../site/lib/<strong>{major_version}</strong>/<strong>{archname}</strong>/</em></p>
-</li>
-<li>
-<p><em>.../site/lib/<strong>{major_version}</strong>/<strong>{archname64}</strong>/</em></p>
-</li>
-<li>
-<p><em>.../site/lib/<strong>{version}</strong>/</em></p>
-</li>
-<li>
-<p><em>.../site/lib/<strong>{version}</strong>/<strong>{archname}</strong>/</em></p>
-</li>
-<li>
-<p><em>.../site/lib/<strong>{version}</strong>/<strong>{archname64}</strong>/</em></p>
+<p><em>.../<strong>{lib_dir}</strong>/<strong>{version}</strong>/<strong>{archname64}</strong>/</em></p>
 </li>
 </ul>
 <p>Additionally, <code>lib::tree</code> looks for a directory named
-<em>.../<strong>{custom_lib}</strong>/PerlInterpreterName/<strong>{os_name}</strong>-<strong>{perl_type}</strong>/</em>. If such
-a directory is found, then that directory (as well as any directories underneath
-it which match the above list) are added to the <code>@INC</code> array.  This is done so
-a single custom library may contain binary Perl modules for different
+<em>.../<strong>{custom_lib}</strong>/PerlInterpreterName/<strong>{os_name}</strong>-<strong>{perl_type}</strong>/</em>.  If
+such a directory is found, then that directory (as well as any directories
+underneath it which match the above list) are added to the <code>@INC</code> array.  This
+is done so a single custom library may contain binary Perl modules for different
 interpreters.</p>
 <p>For example, a single custom library loaded via <code>lib::tree</code>
 could support the following Perl interpreters if the associated directories were
@@ -229,48 +201,119 @@ present and readable:</p>
 <p><em>/usr/local/bin/perl</em> on Linux supported via
 <em>.../<strong>{custom_lib}</strong>/PerlInterpreterName/linux-UsrLocalPerl/</em></p>
 </li>
+<li>
+<p><em>/usr/bin/perl</em> on Linux supported via
+<em>.../<strong>{custom_lib}</strong>/PerlInterpreterName/linux-UsrBinPerl/</em></p>
+</li>
 </ul>
 <p>Please note, definitively identifying different Perl interpreters is an ongoing
 subject of research (if <code>lib::tree</code> is <em>not</em> correctly identifying your
 platform please suggest a method of doing so to the author/maintainer of this
 module).  Also, the <em><strong>{os_name}</strong>-</em> prefix is needed because of ActiveState's
-borken install which does not put binary Perl modules in the canonical location
-(that is, in any of the above mentioned <em>.../<strong>{archname}</strong>/</em> or
-<em>.../<strong>{archname64}</strong>/</em> directories).</p>
+broken (bordering on brain-damaged) install which does not put binary Perl
+modules in the canonical location (that is, in any of the above mentioned
+<em>.../<strong>{archname}</strong>/</em> or <em>.../<strong>{archname64}</strong>/</em> directories).</p>
+<p>Of note is when this module is called with a simple list (that is, a list where
+all values are scalars), four configuration commands are honored (all commands
+begin with the '<code>:</code>' character):</p>
+<dl>
+<dt><strong><a name="item__3aoriginal"><code>:ORIGINAL</code></a></strong>
+
+<dd>
+<p>Restores <code>@INC</code> array to its original condition.  This is provided as an
+alternative to saying <code>@INC = @lib::tree::Original_INC;</code> (which some schools of
+thought consider to be inelegant).  May be negated by prepending <code>NO-</code> (i.e.,
+<code>:NO-ORIGINAL</code>).</p>
+</dd>
+<dd>
+<p>Synonyms are:
+<code>:ORIGINAL-INC</code>, <code>:RESTORE-ORIGINAL</code>, <code>:RESTORE-ORIGINAL-INC</code>,
+<code>:ORIGINAL_INC</code>, <code>:RESTORE_ORIGINAL</code>, <code>:RESTORE_ORIGINAL_INC</code></p>
+</dd>
+</li>
+<dt><strong><a name="item__3adepth"><code>:DEPTH</code></a></strong>
+
+<dd>
+<p>Sets the search type to depth-first.  May be negated by prepending <code>NO-</code> (i.e.,
+<code>:NO-DEPTH</code>).</p>
+</dd>
+<dd>
+<p>Synonyms are: <code>:DEPTH-FIRST</code>, <code>:DEPTH_FIRST</code></p>
+</dd>
+</li>
+<dt><strong><a name="item__3ahalt"><code>:HALT</code></a></strong>
+
+<dd>
+<p>Sets the search style to halt on the first directory which satisfies the search
+criteria.  May be negated by prepending <code>NO-</code> (i.e., <code>:NO-HALT</code>).</p>
+</dd>
+<dd>
+<p>Synonyms are: <code>:HALT-ON-FIND</code>, <code>:HALT_ON_FIND</code></p>
+</dd>
+</li>
+<dt><strong><a name="item__3adebug"><code>:DEBUG</code></a></strong>
+
+<dd>
+<p>Turns on debugging.  May be negated by prepending <code>NO-</code> (i.e., <code>:NO-DEBUG</code>).</p>
+</dd>
+</li>
+</dl>
 <p>
 <a href="#__index__"><small>Back to top</small></a>
 </p>
 <hr />
 <h1><a name="examples">EXAMPLES</a></h1>
-<p><strong>Example 1:</strong></p>
+<dl>
+<dt><strong><a name="item_example_1_3a"><strong>Example&nbsp;1:</strong></a></strong>
+
+<dd>
 <pre>
-  use lib::tree;</pre>
+    use lib::tree;</pre>
+</dd>
+<dd>
 <p>The above incantation will look in <em>/<strong>{full_path_to_script_directory}</strong>/</em> (or whatever the <code>$lib::tree::Default{DIRS}</code> array reference is set to) for a directory named <em>libperl</em> (or whatever the <code>$lib::tree::Default{LIB_DIR}</code> scalar value is set to).</p>
-<p><strong>Example 2:</strong></p>
+</dd>
+<dt><strong><a name="item_example_2_3a"><strong>Example&nbsp;2:</strong></a></strong>
+
+<dd>
 <pre>
-  use lib::tree ( DIRS =&gt;  [ '/home/cschwenz/foo/',
-                             '/home/cschwenz/bar/' ],
-                );</pre>
+    use lib::tree ( DIRS =&gt;  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/bar/' ],
+                  );</pre>
+</dd>
+<dd>
 <p>The above incantation will look in <em>/home/cschwenz/foo/</em> and
 <em>/home/cschwenz/bar/</em> for a directory named <em>libperl</em> (or whatever the <code>$lib::tree::Default{LIB_DIR}</code> scalar value is set to).</p>
-<p><strong>Example 3:</strong></p>
+</dd>
+<dt><strong><a name="item_example_3_3a"><strong>Example&nbsp;3:</strong></a></strong>
+
+<dd>
 <pre>
-  use lib::tree ( DIRS =&gt;  [ '/home/cschwenz/foo/',
-                             '/home/cschwenz/bar/' ],
-                  LIB_DIR =&gt; 'custom_perl_lib',
-                );</pre>
+    use lib::tree ( DIRS =&gt;  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/bar/' ],
+                    LIB_DIR =&gt; 'custom_perl_lib',
+                  );</pre>
+</dd>
+<dd>
 <p>The above incantation will look in <em>/home/cschwenz/foo/</em> and
 <em>/home/cschwenz/bar/</em> for a directory named <em>custom_perl_lib</em>.</p>
-<p><strong>Example 4:</strong></p>
+</dd>
+<dt><strong><a name="item_example_4_3a"><strong>Example&nbsp;4:</strong></a></strong>
+
+<dd>
 <pre>
-  use lib::tree ( DIRS =&gt;  [ '/home/cschwenz/foo/',
-                             '/home/cschwenz/bar/' ],
-                  LIB_DIR =&gt; 'custom_perl_lib',
-                  DELTA =&gt; 3,
-                );</pre>
+    use lib::tree ( DIRS =&gt;  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/bar/' ],
+                    LIB_DIR =&gt; 'custom_perl_lib',
+                    DELTA =&gt; 3,
+                  );</pre>
+</dd>
+<dd>
 <p>The above incantation will look up/down the directory tree to a max of three
 directories from the starting locations of <em>/home/cschwenz/foo/</em> and
 <em>/home/cschwenz/bar/</em> for a directory named <em>custom_perl_lib</em>.</p>
+</dd>
+<dd>
 <p>That is, the directories <em>/home/cschwenz/foo/</em>, <em>/home/cschwenz/foo/../</em>,
 <em>/home/cschwenz/foo/*/</em>, <em>/home/cschwenz/foo/../../</em>,
 <em>/home/cschwenz/foo/*/*/</em>, <em>/home/cschwenz/foo/../../../</em>,
@@ -278,8 +321,116 @@ directories from the starting locations of <em>/home/cschwenz/foo/</em> and
 <em>/home/cschwenz/bar/*/</em>, <em>/home/cschwenz/bar/../../</em>,
 <em>/home/cschwenz/bar/*/*/</em>, <em>/home/cschwenz/bar/../../../</em>, and
 <em>/home/cschwenz/bar/*/*/*/</em> will be searched for a directory named
-<em>custom_perl_lib</em>.  The search will halt upon finding the first instance of a
-directory named <em>custom_perl_lib</em>.</p>
+<em>custom_perl_lib</em> (in that order).  The search will halt upon finding the first
+instance of a directory named <em>custom_perl_lib</em>.</p>
+</dd>
+<dt><strong><a name="item_example_5_3a"><strong>Example&nbsp;5:</strong></a></strong>
+
+<dd>
+<pre>
+    use lib::tree ( DIRS =&gt;  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/bar/' ],
+                    LIB_DIR =&gt; 'custom_perl_lib',
+                    DEPTH_FIRST =&gt; 0,
+                    DELTA =&gt; 2,
+                  );</pre>
+</dd>
+<dd>
+<p>The above incantation will look up/down the directory tree to a max of two
+directories from the starting locations of <em>/home/cschwenz/foo/</em> and
+<em>/home/cschwenz/bar/</em> for a directory named <em>custom_perl_lib</em>.  But, because
+the <code>DEPTH_FIRST</code> parameter is now false, do a breadth-first search instead.</p>
+</dd>
+<dd>
+<p>The <code>DEPTH_FIRST</code> parameter change is important because it changes the order
+directories are searched (thus potentially changing which <em>custom_perl_lib</em>
+gets loaded due to the <code>HALT_ON_FIND</code> parameter defaulting to true).  That is,
+the directories <em>/home/cschwenz/foo/</em>, <em>/home/cschwenz/bar/</em>,
+<em>/home/cschwenz/foo/../</em>, <em>/home/cschwenz/bar/../</em>, <em>/home/cschwenz/foo/*/</em>,
+<em>/home/cschwenz/bar/*/</em>, <em>/home/cschwenz/foo/../../</em>,
+<em>/home/cschwenz/bar/../../</em>, <em>/home/cschwenz/foo/*/*/</em>, and
+<em>/home/cschwenz/bar/*/*/</em> will be searched for a directory named
+<em>custom_perl_lib</em> (in that order).  The search will halt upon finding the first
+instance of a directory named <em>custom_perl_lib</em>.</p>
+</dd>
+<dt><strong><a name="item_example_6_3a"><strong>Example&nbsp;6:</strong></a></strong>
+
+<dd>
+<pre>
+    use lib::tree ( DIRS =&gt;  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/bar/' ],
+                    LIB_DIR =&gt; 'custom_perl_lib',
+                    HALT_ON_FIND =&gt; 0,
+                  );</pre>
+</dd>
+<dd>
+<p>The above incantation will look in <em>/home/cschwenz/foo/</em> and
+<em>/home/cschwenz/bar/</em> for a directory named <em>custom_perl_lib</em>.  But because the <code>HALT_ON_FIND</code> parameter is now false, <code>lib::tree</code> will continue searching regardless of what it finds; if there is a <em>custom_perl_lib</em> directory in both directories, then both <em>/home/cschwenz/foo/custom_perl_lib/</em> and
+<em>/home/cschwenz/bar/custom_perl_lib/</em> will be added to the <code>@INC</code> array.</p>
+</dd>
+<dt><strong><a name="item_example_7_3a"><strong>Example&nbsp;7:</strong></a></strong>
+
+<dd>
+<pre>
+    use lib::tree ( DIRS =&gt;  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/bar/' ],
+                    LIB_DIR =&gt; '',
+                    HALT_ON_FIND =&gt; 0,
+                  );</pre>
+</dd>
+<dd>
+<p>The above incantation will add <em>/home/cschwenz/foo/</em> and
+<em>/home/cschwenz/bar/</em> to the <code>@INC</code> array (but only if said directories exist
+and are readable).</p>
+</dd>
+<dt><strong><a name="item_example_8_3a"><strong>Example&nbsp;8:</strong></a></strong>
+
+<dd>
+<pre>
+    use lib::tree ( DIRS =&gt;  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/ba[rz]/',
+                               '/home/cschwenz/qu*x/' ],
+                    LIB_DIR =&gt; '',
+                    HALT_ON_FIND =&gt; 0,
+                  );</pre>
+</dd>
+<dd>
+<p>The above incantation will add <em>/home/cschwenz/foo/</em>, any directory matching
+the file glob <em>/home/cschwenz/ba[rz]/</em> (i.e., <em>/home/cschwenz/bar/</em> and/or
+<em>/home/cschwenz/baz/</em>), and any directory matching the file glob
+<em>/home/cschwenz/qu*x/</em> to the <code>@INC</code> array (but only if said directories exist
+and are readable).</p>
+</dd>
+<dt><strong><a name="item_example_9_3a"><strong>Example&nbsp;9:</strong></a></strong>
+
+<dd>
+<pre>
+    use lib::tree ( DIRS =&gt;  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/ba[rz]/',
+                               '/home/cschwenz/qu*x/' ],
+                    LIB_DIR =&gt; '',
+                    HALT_ON_FIND =&gt; 0,
+                    DEBUG =&gt; 1,
+                  );</pre>
+</dd>
+<dd>
+<p>The same as <em><strong>Example&nbsp;8</strong></em>, but with debugging turned on so you can see what
+<code>lib::tree</code> is doing internally.</p>
+</dd>
+<dt><strong><a name="item_example_10_3a"><strong>Example&nbsp;10:</strong></a></strong>
+
+<dd>
+<pre>
+    use lib::tree ( '/home/cschwenz/foo/',
+                    '/home/cschwenz/ba[rz]/',
+                    '/home/cschwenz/qu*x/',
+                    ':DEBUG',
+                  );</pre>
+</dd>
+<dd>
+<p>The same as <em><strong>Example&nbsp;9</strong></em>, but called in the simple list style.</p>
+</dd>
+</dl>
 <p>
 <a href="#__index__"><small>Back to top</small></a>
 </p>
@@ -289,10 +440,46 @@ directory named <em>custom_perl_lib</em>.</p>
 </p>
 <h2><a name="import">import</a></h2>
 <p>Called when you say <code>use lib::tree ( ... );</code></p>
+<p>May be called with a hash, a complex list (that is, a list which starts with an
+array reference), or a simple list (where all values are scalars).</p>
+<p>To see what <code>import()</code> is doing, set the <code>DEBUG</code> parameter to true.</p>
 <p>
 </p>
 <h2><a name="unimport">unimport</a></h2>
 <p>Called when you say <code>no lib::tree ( ... );</code></p>
+<p>May be called with a hash, a complex list (that is, a list which starts with an
+array reference), or a simple list (where all values are scalars).</p>
+<p>To see what <code>unimport()</code> is doing, set the <code>DEBUG</code> parameter to true.</p>
+<p>
+<a href="#__index__"><small>Back to top</small></a>
+</p>
+<hr />
+<h1><a name="private_subroutines">PRIVATE SUBROUTINES</a></h1>
+<p>These are listed for completeness, as well as to make it easier for future maintainers to understand the code.</p>
+<dl>
+<dt><strong><a name="item__parse_params"><strong>_parse_params</strong></a></strong>
+
+<dt><strong><a name="item__script_dir"><strong>_script_dir</strong></a></strong>
+
+<dt><strong><a name="item__find_dirs"><strong>_find_dirs</strong></a></strong>
+
+<dt><strong><a name="item__find_lib_dirs"><strong>_find_lib_dirs</strong></a></strong>
+
+<dt><strong><a name="item__find_inc_dirs"><strong>_find_INC_dirs</strong></a></strong>
+
+<dt><strong><a name="item__get_path_hash"><strong>_get_path_hash</strong></a></strong>
+
+<dt><strong><a name="item__get_dirs"><strong>_get_dirs</strong></a></strong>
+
+<dt><strong><a name="item__find_perl_type"><strong>_find_perl_type</strong></a></strong>
+
+<dt><strong><a name="item__glob_dir"><strong>_glob_dir</strong></a></strong>
+
+<dt><strong><a name="item__add_to_list"><strong>_add_to_list</strong></a></strong>
+
+<dt><strong><a name="item__simplify_list"><strong>_simplify_list</strong></a></strong>
+
+</dl>
 <p>
 <a href="#__index__"><small>Back to top</small></a>
 </p>

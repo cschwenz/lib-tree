@@ -3,7 +3,7 @@ package lib::tree;
 use warnings;
 use strict;
 use Config '%Config';
-use Carp qw(carp croak);
+use Carp ('carp', 'croak');
 use File::Spec::Functions qw( splitpath catpath
                               splitdir catdir
                               file_name_is_absolute );
@@ -564,6 +564,8 @@ sub _find_perl_type {
         $perl_type = 'Vanilla';
     }
     else {
+        # When all else fails, use the first one or two directories in the path
+        # to the perl interpreter.
         my @clean = grep { (defined $_) && (length($_) >= 1) } @{$perl{'dirs'}};
         $perl_type = '';
         if(defined $clean[0]) { $perl_type .= $clean[0]; }
@@ -642,9 +644,11 @@ __END__
 
 lib::tree - Add directory trees to the C<@INC> array at compile time.
 
+
 =head1 VERSION
 
 Version 0.01
+
 
 =head1 SYNOPSIS
 
@@ -654,168 +658,130 @@ Perl interpreter type and version, this pragma will add the correct
 sub-directories within the given library directory (but only if said directories
 are found).
 
-  # Called with a hash:
-  use lib::tree ( DIRS =>  [ '/some/directory/',
-                             'another/directory/',
-                             '/yet/another/directory/with/*/globbing/',
-                             'more/{dir,directory}/glob?/fun/',
-                           ], # Accepts absolute/relative directories, with or
-                              # without globbing.  (Defaults to the directory of
-                              # the currently running script; i.e., if the full
-                              # path to the script which invoked lib::tree is
-                              # '/home/foo/scripts/bar.pl' then the default
-                              # will be '/home/foo/scripts/')
-                  LIB_DIR => 'customLibDirName', # This should be *just* the
-                                                 # name of the directory (i.e.,
-                                                 # neither a relative nor an
-                                                 # absolute path; defaults to
-                                                 # 'libperl')!
-                  DEPTH_FIRST => 0, # If this is false, then lib::tree will do a
-                                    # breadth-first search of the directories
-                                    # listed by the DIRS parameter.  (Defaults
-                                    # to 1; this allows the order of directories
-                                    # specified in the DIRS parameter to be
-                                    # honored)
-                  HALT_ON_FIND => 1, # Do we want to stop searching directories
-                                     # for the given LIB_DIR when we find our
-                                     # first match?  (Defaults to 1; normally
-                                     # you do not want multiple LIB_DIRs found.)
-                  DELTA => 2, # How many directories up and down the directory
-                              # tree from a given location in said tree are we
-                              # to search for a LIB_DIR?  (Defaults to 0; that
-                              # is, we normally do *not* look outside of the
-                              # directories listed by the DIRS parameter)
-                );
-  
-  
-  # Called with a list which begins with an array reference:
-  use lib::tree ( [ '/some/directory/',
+    # Called with a hash:
+    use lib::tree ( DIRS =>  [ '/some/directory/',
+                               'another/directory/',
+                               '/yet/another/directory/with/*/globbing/',
+                               'more/{dir,directory}/glob?/fun/',
+                             ], # Accepts absolute/relative directories, with or
+                                # without globbing.  (Defaults to the directory
+                                # of the currently running script; i.e., if the
+                                # full path to the script which invoked
+                                # lib::tree is '/home/foo/scripts/bar.pl' then
+                                # the default will be '/home/foo/scripts/')
+                    LIB_DIR => 'libName', # This should be *just* the name of
+                                          # the directory (i.e., neither a
+                                          # relative nor an absolute path;
+                                          # defaults to 'libperl')!
+                    DEPTH_FIRST => 0, # If this is false, then lib::tree will do
+                                      # a breadth-first search of the
+                                      # directories listed by the DIRS
+                                      # parameter.  (Defaults to 1; this allows
+                                      # the order of directories specified in
+                                      # the DIRS parameter to be honored)
+                    HALT_ON_FIND => 1, # Do we want to stop searching
+                                       # directories for the given LIB_DIR when
+                                       # we find our first match?  (Defaults to
+                                       # 1; normally you do not want multiple
+                                       # LIB_DIRs found.)
+                    DELTA => 2, # How many directories up and down the directory
+                                # tree from a given location in said tree are we
+                                # to search for a LIB_DIR?  (Defaults to 0; that
+                                # is, we normally do *not* look outside of the
+                                # directories listed by the DIRS parameter)
+                  );
+    
+    
+    # Called with a list which begins with an array reference:
+    use lib::tree ( [ '/some/directory/',
+                      'another/directory/',
+                      '/yet/another/directory/with/*/globbing/',
+                      'more/{dir,directory}/glob?/fun/',
+                    ], # The DIRS parameter.
+                    'libName', # The LIB_DIR parameter.
+                    0, # The DEPTH_FIRST parameter.
+                    1, # The HALT_ON_FIND parameter.
+                    2, # The DELTA parameter.
+                  );
+    # PLEASE NOTE:
+    #     Order matters! If you want to leave a value at the default setting but
+    #     want to change the value of something later in the list, use the
+    #     undefined value as a placeholder for the default values you do no want
+    #     to change.
+    
+    
+    # Called with a simple list:
+    use lib::tree ( '/some/directory/',
                     'another/directory/',
                     '/yet/another/directory/with/*/globbing/',
                     'more/{dir,directory}/glob?/fun/',
-                  ], # The DIRS parameter.
-                  'customLibDirName', # The LIB_DIR parameter.
-                  0, # The DEPTH_FIRST parameter.
-                  1, # The HALT_ON_FIND parameter.
-                  2, # The DELTA parameter.
-                );
-  # PLEASE NOTE:
-  #     Order matters! If you want to leave a value at the default setting but
-  #     want to change the value of something later in the list, use the
-  #     undefined value as a placeholder for the default values you do no want
-  #     to change.
-  
-  
-  # Called with a simple list:
-  use lib::tree ( '/some/directory/',
-                  'another/directory/',
-                  '/yet/another/directory/with/*/globbing/',
-                  'more/{dir,directory}/glob?/fun/',
-                );
-  # PLEASE NOTE:
-  #     If lib::tree is called with a simple list, two defaults change:
-  #         * LIB_DIR defaults to '' (i.e., everything that matches what is
-  #           listed will be added to the @INC array).
-  #         * HALT_ON_FIND defaults to 0 (otherwise, only the first matching
-  #           directory would be added to the INC array).
+                  );
+    # PLEASE NOTE:
+    #     If lib::tree is called with a simple list, two defaults change:
+    #         * LIB_DIR defaults to '' (i.e., everything that matches what is
+    #           listed will be added to the @INC array).
+    #         * HALT_ON_FIND defaults to 0 (otherwise, only the first matching
+    #           directory would be added to the INC array).
+
 
 =head1 USAGE
 
 Upon finding a directory whose name matches the C<LIB_DIR> parameter in one of
 the specified directories, the full path to that directory (i.e.,
 F</B<{specified_dir}>/B<{custom_lib}>/>)is added to the C<@INC> array as well as
-the following directories within the newly added directory (but only if they
-exist and are readable):
+the following directories (replace F<B<{lib_dir}>> with F<lib> and F<site/lib>)
+within the newly added directory (but only if said directories exist and are
+readable):
 
 =over
 
 =item *
 
-F<.../lib/>
+F<.../B<{lib_dir}>/>
 
 =item *
 
-F<.../lib/B<{previous_version(s)}>/>
+F<.../B<{lib_dir}>/B<{previous_version(s)}>/>
 
 =item *
 
-F<.../lib/B<{archname}>/>
+F<.../B<{lib_dir}>/B<{archname}>/>
 
 =item *
 
-F<.../lib/B<{archname64}>/>
+F<.../B<{lib_dir}>/B<{archname64}>/>
 
 =item *
 
-F<.../lib/B<{major_version}>/>
+F<.../B<{lib_dir}>/B<{major_version}>/>
 
 =item *
 
-F<.../lib/B<{major_version}>/B<{archname}>/>
+F<.../B<{lib_dir}>/B<{major_version}>/B<{archname}>/>
 
 =item *
 
-F<.../lib/B<{major_version}>/B<{archname64}>/>
+F<.../B<{lib_dir}>/B<{major_version}>/B<{archname64}>/>
 
 =item *
 
-F<.../lib/B<{version}>/>
+F<.../B<{lib_dir}>/B<{version}>/>
 
 =item *
 
-F<.../lib/B<{version}>/B<{archname}>/>
+F<.../B<{lib_dir}>/B<{version}>/B<{archname}>/>
 
 =item *
 
-F<.../lib/B<{version}>/B<{archname64}>/>
-
-=item *
-
-F<.../site/lib/>
-
-=item *
-
-F<.../site/lib/B<{previous_version(s)}>/>
-
-=item *
-
-F<.../site/lib/B<{archname}>/>
-
-=item *
-
-F<.../site/lib/B<{archname64}>/>
-
-=item *
-
-F<.../site/lib/B<{major_version}>/>
-
-=item *
-
-F<.../site/lib/B<{major_version}>/B<{archname}>/>
-
-=item *
-
-F<.../site/lib/B<{major_version}>/B<{archname64}>/>
-
-=item *
-
-F<.../site/lib/B<{version}>/>
-
-=item *
-
-F<.../site/lib/B<{version}>/B<{archname}>/>
-
-=item *
-
-F<.../site/lib/B<{version}>/B<{archname64}>/>
+F<.../B<{lib_dir}>/B<{version}>/B<{archname64}>/>
 
 =back
 
 Additionally, C<lib::tree> looks for a directory named
-F<.../B<{custom_lib}>/PerlInterpreterName/B<{os_name}>-B<{perl_type}>/>. If such
-a directory is found, then that directory (as well as any directories underneath
-it which match the above list) are added to the C<@INC> array.  This is done so
-a single custom library may contain binary Perl modules for different
+F<.../B<{custom_lib}>/PerlInterpreterName/B<{os_name}>-B<{perl_type}>/>.  If
+such a directory is found, then that directory (as well as any directories
+underneath it which match the above list) are added to the C<@INC> array.  This
+is done so a single custom library may contain binary Perl modules for different
 interpreters.
 
 For example, a single custom library loaded via C<lib::tree>
@@ -849,53 +815,95 @@ F<.../B<{custom_lib}>/PerlInterpreterName/cygwin-UsrBinPerl/>
 F</usr/local/bin/perl> on Linux supported via
 F<.../B<{custom_lib}>/PerlInterpreterName/linux-UsrLocalPerl/>
 
+=item *
+
+F</usr/bin/perl> on Linux supported via
+F<.../B<{custom_lib}>/PerlInterpreterName/linux-UsrBinPerl/>
+
 =back
 
 Please note, definitively identifying different Perl interpreters is an ongoing
 subject of research (if C<lib::tree> is I<not> correctly identifying your
 platform please suggest a method of doing so to the author/maintainer of this
 module).  Also, the F<B<{os_name}>-> prefix is needed because of ActiveState's
-borken install which does not put binary Perl modules in the canonical location
-(that is, in any of the above mentioned F<.../B<{archname}>/> or
-F<.../B<{archname64}>/> directories).
+broken (bordering on brain-damaged) install which does not put binary Perl
+modules in the canonical location (that is, in any of the above mentioned
+F<.../B<{archname}>/> or F<.../B<{archname64}>/> directories).
+
+Of note is when this module is called with a simple list (that is, a list where
+all values are scalars), four configuration commands are honored (all commands
+begin with the 'C<:>' character):
+
+=over
+
+=item C<:ORIGINAL>
+
+Restores C<@INC> array to its original condition.  This is provided as an
+alternative to saying C<@INC = @lib::tree::Original_INC;> (which some schools of
+thought consider to be inelegant).  May be negated by prepending C<NO-> (i.e.,
+C<:NO-ORIGINAL>).
+
+Synonyms are:
+C<:ORIGINAL-INC>, C<:RESTORE-ORIGINAL>, C<:RESTORE-ORIGINAL-INC>,
+C<:ORIGINAL_INC>, C<:RESTORE_ORIGINAL>, C<:RESTORE_ORIGINAL_INC>
+
+=item C<:DEPTH>
+
+Sets the search type to depth-first.  May be negated by prepending C<NO-> (i.e.,
+C<:NO-DEPTH>).
+
+Synonyms are: C<:DEPTH-FIRST>, C<:DEPTH_FIRST>
+
+=item C<:HALT>
+
+Sets the search style to halt on the first directory which satisfies the search
+criteria.  May be negated by prepending C<NO-> (i.e., C<:NO-HALT>).
+
+Synonyms are: C<:HALT-ON-FIND>, C<:HALT_ON_FIND>
+
+=item C<:DEBUG>
+
+Turns on debugging.  May be negated by prepending C<NO-> (i.e., C<:NO-DEBUG>).
+
+=back
 
 
 =head1 EXAMPLES
 
-B<Example 1:>
+=over
 
-  use lib::tree;
+=item B<S<Example 1:>>
+
+    use lib::tree;
 
 The above incantation will look in F</B<{full_path_to_script_directory}>/> (or whatever the C<$lib::tree::Default{DIRS}> array reference is set to) for a directory named F<libperl> (or whatever the C<$lib::tree::Default{LIB_DIR}> scalar value is set to).
 
-B<Example 2:>
+=item B<S<Example 2:>>
 
-  use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
-                             '/home/cschwenz/bar/' ],
-                );
+    use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/bar/' ],
+                  );
 
 The above incantation will look in F</home/cschwenz/foo/> and
 F</home/cschwenz/bar/> for a directory named F<libperl> (or whatever the C<$lib::tree::Default{LIB_DIR}> scalar value is set to).
 
+=item B<S<Example 3:>>
 
-B<Example 3:>
-
-  use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
-                             '/home/cschwenz/bar/' ],
-                  LIB_DIR => 'custom_perl_lib',
-                );
+    use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/bar/' ],
+                    LIB_DIR => 'custom_perl_lib',
+                  );
 
 The above incantation will look in F</home/cschwenz/foo/> and
 F</home/cschwenz/bar/> for a directory named F<custom_perl_lib>.
 
+=item B<S<Example 4:>>
 
-B<Example 4:>
-
-  use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
-                             '/home/cschwenz/bar/' ],
-                  LIB_DIR => 'custom_perl_lib',
-                  DELTA => 3,
-                );
+    use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/bar/' ],
+                    LIB_DIR => 'custom_perl_lib',
+                    DELTA => 3,
+                  );
 
 The above incantation will look up/down the directory tree to a max of three
 directories from the starting locations of F</home/cschwenz/foo/> and
@@ -908,8 +916,97 @@ F</home/cschwenz/foo/*/*/*/>, F</home/cschwenz/bar/>, F</home/cschwenz/bar/../>,
 F</home/cschwenz/bar/*/>, F</home/cschwenz/bar/../../>,
 F</home/cschwenz/bar/*/*/>, F</home/cschwenz/bar/../../../>, and
 F</home/cschwenz/bar/*/*/*/> will be searched for a directory named
-F<custom_perl_lib>.  The search will halt upon finding the first instance of a
-directory named F<custom_perl_lib>.
+F<custom_perl_lib> (in that order).  The search will halt upon finding the first
+instance of a directory named F<custom_perl_lib>.
+
+=item B<S<Example 5:>>
+
+    use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/bar/' ],
+                    LIB_DIR => 'custom_perl_lib',
+                    DEPTH_FIRST => 0,
+                    DELTA => 2,
+                  );
+
+The above incantation will look up/down the directory tree to a max of two
+directories from the starting locations of F</home/cschwenz/foo/> and
+F</home/cschwenz/bar/> for a directory named F<custom_perl_lib>.  But, because
+the C<DEPTH_FIRST> parameter is now false, do a breadth-first search instead.
+
+The C<DEPTH_FIRST> parameter change is important because it changes the order
+directories are searched (thus potentially changing which F<custom_perl_lib>
+gets loaded due to the C<HALT_ON_FIND> parameter defaulting to true).  That is,
+the directories F</home/cschwenz/foo/>, F</home/cschwenz/bar/>,
+F</home/cschwenz/foo/../>, F</home/cschwenz/bar/../>, F</home/cschwenz/foo/*/>,
+F</home/cschwenz/bar/*/>, F</home/cschwenz/foo/../../>,
+F</home/cschwenz/bar/../../>, F</home/cschwenz/foo/*/*/>, and
+F</home/cschwenz/bar/*/*/> will be searched for a directory named
+F<custom_perl_lib> (in that order).  The search will halt upon finding the first
+instance of a directory named F<custom_perl_lib>.
+
+=item B<S<Example 6:>>
+
+    use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/bar/' ],
+                    LIB_DIR => 'custom_perl_lib',
+                    HALT_ON_FIND => 0,
+                  );
+
+The above incantation will look in F</home/cschwenz/foo/> and
+F</home/cschwenz/bar/> for a directory named F<custom_perl_lib>.  But because the C<HALT_ON_FIND> parameter is now false, C<lib::tree> will continue searching regardless of what it finds; if there is a F<custom_perl_lib> directory in both directories, then both F</home/cschwenz/foo/custom_perl_lib/> and
+F</home/cschwenz/bar/custom_perl_lib/> will be added to the C<@INC> array.
+
+=item B<S<Example 7:>>
+
+    use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/bar/' ],
+                    LIB_DIR => '',
+                    HALT_ON_FIND => 0,
+                  );
+
+The above incantation will add F</home/cschwenz/foo/> and
+F</home/cschwenz/bar/> to the C<@INC> array (but only if said directories exist
+and are readable).
+
+=item B<S<Example 8:>>
+
+    use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/ba[rz]/',
+                               '/home/cschwenz/qu*x/' ],
+                    LIB_DIR => '',
+                    HALT_ON_FIND => 0,
+                  );
+
+The above incantation will add F</home/cschwenz/foo/>, any directory matching
+the file glob F</home/cschwenz/ba[rz]/> (i.e., F</home/cschwenz/bar/> and/or
+F</home/cschwenz/baz/>), and any directory matching the file glob
+F</home/cschwenz/qu*x/> to the C<@INC> array (but only if said directories exist
+and are readable).
+
+=item B<S<Example 9:>>
+
+    use lib::tree ( DIRS =>  [ '/home/cschwenz/foo/',
+                               '/home/cschwenz/ba[rz]/',
+                               '/home/cschwenz/qu*x/' ],
+                    LIB_DIR => '',
+                    HALT_ON_FIND => 0,
+                    DEBUG => 1,
+                  );
+
+The same as I<B<S<Example 8>>>, but with debugging turned on so you can see what
+C<lib::tree> is doing internally.
+
+=item B<S<Example 10:>>
+
+    use lib::tree ( '/home/cschwenz/foo/',
+                    '/home/cschwenz/ba[rz]/',
+                    '/home/cschwenz/qu*x/',
+                    ':DEBUG',
+                  );
+
+The same as I<B<S<Example 9>>>, but called in the simple list style.
+
+=back
 
 
 =head1 SUBROUTINES
@@ -918,9 +1015,50 @@ directory named F<custom_perl_lib>.
 
 Called when you say C<use lib::tree ( ... );>
 
+May be called with a hash, a complex list (that is, a list which starts with an
+array reference), or a simple list (where all values are scalars).
+
+To see what C<import()> is doing, set the C<DEBUG> parameter to true.
+
 =head2 unimport
 
 Called when you say C<no lib::tree ( ... );>
+
+May be called with a hash, a complex list (that is, a list which starts with an
+array reference), or a simple list (where all values are scalars).
+
+To see what C<unimport()> is doing, set the C<DEBUG> parameter to true.
+
+
+=head1 PRIVATE SUBROUTINES
+
+These are listed for completeness, as well as to make it easier for future maintainers to understand the code.
+
+=over
+
+=item B<_parse_params>
+
+=item B<_script_dir>
+
+=item B<_find_dirs>
+
+=item B<_find_lib_dirs>
+
+=item B<_find_INC_dirs>
+
+=item B<_get_path_hash>
+
+=item B<_get_dirs>
+
+=item B<_find_perl_type>
+
+=item B<_glob_dir>
+
+=item B<_add_to_list>
+
+=item B<_simplify_list>
+
+=back
 
 
 =head1 AUTHOR
