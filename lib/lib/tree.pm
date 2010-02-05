@@ -15,8 +15,8 @@ our $VERSION = '0.01';
 our @Original_INC = @INC;
 our %Default = ( DIRS => [ _script_dir(), ],
                  LIB_DIR => 'libperl',
+                 INTERPRETER_DIR => 'PerlInterpreterName',
                );
-our $Interpreter_Dir_Name = 'PerlInterpreterName';
 
 
 my $DEBUG = 0;
@@ -483,7 +483,7 @@ sub _find_INC_dirs {
         }
         my %root = _get_path_hash($dir);
         my $interp_dir = catdir( $root{'volume'}, @{$root{'dirs'}},
-                                 $Interpreter_Dir_Name, _find_perl_type() );
+                                 $Default{INTERPRETER_DIR}, _find_perl_type() );
         if((-e $interp_dir) && (-d $interp_dir) && (-r $interp_dir)) {
             # If we found a directory which differentiates the Perl library
             # by interpreter type, then add the library tree under the
@@ -1032,31 +1032,77 @@ To see what C<unimport()> is doing, set the C<DEBUG> parameter to true.
 
 =head1 PRIVATE SUBROUTINES
 
-These are listed for completeness, as well as to make it easier for future maintainers to understand the code.
+These are listed for completeness, as well as to make it easier for future
+maintainers to understand the code.
 
 =over
 
 =item B<_parse_params>
 
+Parses the C<@_> array, placing relevant data in a returned C<%param> hash.
+Supports three different calling conventions: hash, complex list, and simple
+list.
+
 =item B<_script_dir>
+
+This is the function which tries to determine the full path to the directory
+which holds the currently running program.  Assumes the user has not C<chdir>ed
+before C<lib::tree> enters the compile phase.
 
 =item B<_find_dirs>
 
+Given a reference to a list of directories, find the ones which exist, are
+readable, and (most importantly) truly are directories.
+
 =item B<_find_lib_dirs>
+
+This subroutine is the heart of C<lib::tree>; it is where we go hunting for the
+requested custom library directory.  Takes the library directory name to search
+for, how many directories up/down from a given directory to search for said
+library directory, whether or not this is a depth-first search, if we halt the
+search on the first matching directory, and a reference to a list of directories
+to search.
 
 =item B<_find_INC_dirs>
 
+Takes a reference to a list of directories and returns a (nuanced) list of
+directories to include on the C<@INC> array.
+
 =item B<_get_path_hash>
+
+Break a given path into is volume, directories, and file; then further divide
+the directories segment into individual directory names.  Returns a hash with
+keys 'C<volume>', 'C<directories>', 'C<file>', and 'C<dirs>' (and the 'C<dirs>'
+key points to an array reference).
 
 =item B<_get_dirs>
 
+Given a path, generate a list of all possible directories to look for based on
+this perl interpreter's configuration values (it is the job of the
+C<_find_INC_dirs()> subroutine to validate the returned list).
+
 =item B<_find_perl_type>
+
+Return the directory name to look for when searching for this perl's binary
+modules (i.e., Perl modules which call out to dynamic libraries, modules which
+play well with only one type of perl interpreter, etc.).  This subroutine is the
+one most likely to need periodic maintenance.
 
 =item B<_glob_dir>
 
+Take a scalar (presumably one which contains a directory path), run it through
+C<glob()> and C<Cwd::realpath()>, then return a list of directories which exist
+and are readable.
+
 =item B<_add_to_list>
 
+Given two array references and the optional current first library directory
+(used to halt upon finding the first directory match), push the contents of the
+second array reference onto the array referenced by the first value.
+
 =item B<_simplify_list>
+
+Given a list, use C<Tie::Indexed::Hash> to maintain order while stripping out duplicates from said list; then return the cleaned list.
 
 =back
 

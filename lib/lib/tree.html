@@ -455,30 +455,98 @@ array reference), or a simple list (where all values are scalars).</p>
 </p>
 <hr />
 <h1><a name="private_subroutines">PRIVATE SUBROUTINES</a></h1>
-<p>These are listed for completeness, as well as to make it easier for future maintainers to understand the code.</p>
+<p>These are listed for completeness, as well as to make it easier for future
+maintainers to understand the code.</p>
 <dl>
 <dt><strong><a name="item__parse_params"><strong>_parse_params</strong></a></strong>
 
+<dd>
+<p>Parses the <code>@_</code> array, placing relevant data in a returned <code>%param</code> hash.
+Supports three different calling conventions: hash, complex list, and simple
+list.</p>
+</dd>
+</li>
 <dt><strong><a name="item__script_dir"><strong>_script_dir</strong></a></strong>
 
+<dd>
+<p>This is the function which tries to determine the full path to the directory
+which holds the currently running program.  Assumes the user has not <code>chdir</code>ed
+before <code>lib::tree</code> enters the compile phase.</p>
+</dd>
+</li>
 <dt><strong><a name="item__find_dirs"><strong>_find_dirs</strong></a></strong>
 
+<dd>
+<p>Given a reference to a list of directories, find the ones which exist, are
+readable, and (most importantly) truly are directories.</p>
+</dd>
+</li>
 <dt><strong><a name="item__find_lib_dirs"><strong>_find_lib_dirs</strong></a></strong>
 
+<dd>
+<p>This subroutine is the heart of <code>lib::tree</code>; it is where we go hunting for the
+requested custom library directory.  Takes the library directory name to search
+for, how many directories up/down from a given directory to search for said
+library directory, whether or not this is a depth-first search, if we halt the
+search on the first matching directory, and a reference to a list of directories
+to search.</p>
+</dd>
+</li>
 <dt><strong><a name="item__find_inc_dirs"><strong>_find_INC_dirs</strong></a></strong>
 
+<dd>
+<p>Takes a reference to a list of directories and returns a (nuanced) list of
+directories to include on the <code>@INC</code> array.</p>
+</dd>
+</li>
 <dt><strong><a name="item__get_path_hash"><strong>_get_path_hash</strong></a></strong>
 
+<dd>
+<p>Break a given path into is volume, directories, and file; then further divide
+the directories segment into individual directory names.  Returns a hash with
+keys '<code>volume</code>', '<code>directories</code>', '<code>file</code>', and '<code>dirs</code>' (and the '<code>dirs</code>'
+key points to an array reference).</p>
+</dd>
+</li>
 <dt><strong><a name="item__get_dirs"><strong>_get_dirs</strong></a></strong>
 
+<dd>
+<p>Given a path, generate a list of all possible directories to look for based on
+this perl interpreter's configuration values (it is the job of the
+<a href="#item__find_inc_dirs"><code>_find_INC_dirs()</code></a> subroutine to validate the returned list).</p>
+</dd>
+</li>
 <dt><strong><a name="item__find_perl_type"><strong>_find_perl_type</strong></a></strong>
 
+<dd>
+<p>Return the directory name to look for when searching for this perl's binary
+modules (i.e., Perl modules which call out to dynamic libraries, modules which
+play well with only one type of perl interpreter, etc.).  This subroutine is the
+one most likely to need periodic maintenance.</p>
+</dd>
+</li>
 <dt><strong><a name="item__glob_dir"><strong>_glob_dir</strong></a></strong>
 
+<dd>
+<p>Take a scalar (presumably one which contains a directory path), run it through
+<code>glob()</code> and <code>Cwd::realpath()</code>, then return a list of directories which exist
+and are readable.</p>
+</dd>
+</li>
 <dt><strong><a name="item__add_to_list"><strong>_add_to_list</strong></a></strong>
 
+<dd>
+<p>Given two array references and the optional current first library directory
+(used to halt upon finding the first directory match), push the contents of the
+second array reference onto the array referenced by the first value.</p>
+</dd>
+</li>
 <dt><strong><a name="item__simplify_list"><strong>_simplify_list</strong></a></strong>
 
+<dd>
+<p>Given a list, use <code>Tie::Indexed::Hash</code> to maintain order while stripping out duplicates from said list; then return the cleaned list.</p>
+</dd>
+</li>
 </dl>
 <p>
 <a href="#__index__"><small>Back to top</small></a>
