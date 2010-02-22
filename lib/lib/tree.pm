@@ -2,13 +2,13 @@ package lib::tree;
 
 use warnings;
 use strict;
+use 5.006001;
 use Config '%Config';
-use Carp ('carp', 'croak');
+use Carp qw( carp croak );
 use File::Spec::Functions qw( splitpath catpath
                               splitdir catdir
                               file_name_is_absolute );
-use Cwd qw(getcwd realpath);
-use Tie::Indexed::Hash;
+use Cwd qw( getcwd realpath );
 
 
 our $VERSION = '0.01';
@@ -48,7 +48,7 @@ if( (defined $version) && (length($version) >= 1) &&
         ($version =~ m/\A\s*(\d+(?:\.\d+)?)(?:\.\d+(?:\.\d+)*?)*?\s*\z/) ) {
         $major_version = $1;
     }
-    elsif($perl_version ne $version) ) {
+    elsif($perl_version ne $version) {
         carp( "The version reported by Config ($version) differs from the " .
               "version reported by the perl interpreter ($perl_version)!" );
     }
@@ -153,7 +153,7 @@ sub unimport {
         my @remove_dirs = _find_INC_dirs(\@lib_dirs);
         foreach (@remove_dirs) { $remove{$_} = 1; }
     }
-    @INC = grep { (not exists $remove{$_}) } @INC
+    @INC = grep { (not exists $remove{$_}) } @INC;
     @INC = _simplify_list(@INC);
 
     if($DEBUG) {
@@ -219,13 +219,13 @@ sub _parse_params {
     # If all else fails, treat the passed values as a simple list of directory
     # names (after parsing out the special command ops; all command ops start
     # with a ':').
-    else {
+    elsif(scalar(@list) >= 1) {
         $param{LIB_DIR} = '';
         $param{HALT_ON_FIND} = 0;
         my $no_re = qr/NO[\-\_]/i;
         my %op = ( ORIGINAL =>
                        qr/(?:$no_re)?(?:RESTORE[\-\_])?ORIGINAL(?:[\-\_]INC)?/i,
-                   DEPTH_FIRST => qr/(?:$no_re)?DEPTH(?:[\-\_]FIRST)?/i
+                   DEPTH_FIRST => qr/(?:$no_re)?DEPTH(?:[\-\_]FIRST)?/i,
                    HALT_ON_FIND => qr/(?:$no_re)?HALT(?:[\-\_]ON[\-\_]FIND)?/i,
                    DEBUG => qr/(?:$no_re)?DEBUG/i,
                  );
@@ -250,14 +250,14 @@ sub _parse_params {
     if(not defined $param{DIRS}) {
         $param{DIRS} = \@{$Default{DIRS}};
     }
-    if((defined $params{DIRS}) && (ref($param{DIRS}) ne 'ARRAY')) {
+    if((defined $param{DIRS}) && (ref($param{DIRS}) ne 'ARRAY')) {
         carp("The DIRS parameter is expecting an array reference.");
-        if(ref($params{DIRS}) eq '') {
+        if(ref($param{DIRS}) eq '') {
             carp("The DIRS parameter is fixable, converting from scalar.");
-            my @temp = ( $params{DIRS}, );
-            $params{DIRS} = \@temp;
+            my @temp = ( $param{DIRS}, );
+            $param{DIRS} = \@temp;
         }
-        elsif(ref($params{DIRS}) eq 'HASH') {
+        elsif(ref($param{DIRS}) eq 'HASH') {
             carp("The DIRS parameter is fixable, converting from hash.");
             my @temp = sort keys %{$param{DIRS}};
             $param{DIRS} = \@temp;
@@ -296,30 +296,35 @@ sub _parse_params {
     if( (defined $param{ORIGINAL}) &&
         ($param{ORIGINAL} =~ m/\A\s*(?:1|T(?:rue)?)\s*\z/i) ) {
         $param{ORIGINAL} = 1;
+    }
     else {
         $param{ORIGINAL} = 0;
     }
     if( (defined $param{DEPTH_FIRST}) &&
         ($param{DEPTH_FIRST} =~ m/\A\s*(?:0|F(?:alse)?)\s*\z/i) ) {
         $param{DEPTH_FIRST} = 0;
+    }
     else {
         $param{DEPTH_FIRST} = 1;
     }
     if( (defined $param{HALT_ON_FIND}) &&
         ($param{HALT_ON_FIND} =~ m/\A\s*(?:0|F(?:alse)?)\s*\z/i) ) {
         $param{HALT_ON_FIND} = 0;
+    }
     else {
         $param{HALT_ON_FIND} = 1;
     }
     if( (defined $param{DELTA}) &&
         ($param{DELTA} =~ m/\A\s*[\+\-]?\s*(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][\+\-]?\d+)?\s*\z/) ) {
         $param{DELTA} = abs(int($param{DELTA} * 1));
+    }
     else {
         $param{DELTA} = 0;
     }
     if( (defined $param{DEBUG}) &&
         ($param{DEBUG} =~ m/\A\s*(?:1|T(?:rue)?)\s*\z/i) ) {
         $param{DEBUG} = 1;
+    }
     else {
         $param{DEBUG} = 0;
     }
@@ -517,7 +522,7 @@ sub _get_dirs {
 
     my %dir = _get_path_hash($path);
     my @lib = ( catdir($dir{'volume'}, @{$dir{'dirs'}}, 'lib'), );
-    my @site_lib = ( catdir($dir{'volume'}, @{$dir{'dirs'}}, 'site', 'lib'), )
+    my @site_lib = ( catdir($dir{'volume'}, @{$dir{'dirs'}}, 'site', 'lib'), );
     foreach my $ver (@inc_version_list) {
         if((defined $ver) && (length($ver) >= 1)) {
             push @lib, catdir($lib[0], $ver);
@@ -553,8 +558,9 @@ sub _find_perl_type {
     my $strawberry_re = qr/(?:\b)strawberry[\-]?perl(?:\b)/i;
     my $vanilla_re = qr/(?:\b)vanilla[\-]?perl(?:\b)/i;
 
-    my $perl_type = undef
-    if(`$^X -v` =~ m/(?:\b)Active(?:State|Perl)(?:\b)/) {
+    my $perl_type = undef;
+    my $perl_binary = ($^X =~ m/^(.*perl.*?)$/i) ? $1 : 'perl';
+    if(`$perl_binary -v` =~ m/(?:\b)Active(?:State|Perl)(?:\b)/) {
         $perl_type = 'ActiveState';
     }
     elsif(scalar(grep { m/$strawberry_re/ } @{$perl{'dirs'}}) >= 1) {
@@ -624,14 +630,13 @@ sub _add_to_list {
 sub _simplify_list {
   my @list = @_;
 
-  tie(my %hash, 'Tie::Indexed::Hash');
-  %hash = ();
-  foreach my $dir (@list) {
-      $hash{"$dir"} = 1;
+  my @clean = ();
+  foreach my $dir (@list)
+  {
+    if(scalar(grep { $dir eq $_ } @clean) < 1) { push @clean, $dir; }
   }
-  @list = keys(%hash);
 
-  return wantarray ? @list : \@list;
+  return wantarray ? @clean : \@clean;
 }
 
 
@@ -1129,7 +1134,7 @@ You can find documentation for this module with the perldoc command.
 
 You can also look for information at:
 
-=over 4
+=over
 
 =item * RT: CPAN's request tracker
 
@@ -1183,7 +1188,7 @@ This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
 by the Free Software Foundation; or the Artistic License.
 
-See http://dev.perl.org/licenses/ for more information.
+See L<http://dev.perl.org/licenses/> for more information.
 
 
 =cut
