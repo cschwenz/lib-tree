@@ -9,6 +9,12 @@ my $builder = Module::Build->new(
     dist_version_from   => 'lib/lib/tree.pm',
     build_requires => {
         'Test::More' => 0,
+        'Config' => 0,
+        'Carp' => 0,
+        'File::Spec' => 0,
+        'File::Spec::Functions' => 0,
+        'File::Path' => 0,
+        'Cwd' => 0,
     },
     add_to_cleanup      => [ 'lib-tree-*' ],
     create_makefile_pl => 'traditional',
