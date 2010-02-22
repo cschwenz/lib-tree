@@ -11,7 +11,7 @@ use File::Spec::Functions qw( splitpath catpath
 use Cwd qw( getcwd realpath );
 
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 our @Original_INC = @INC;
 our %Default = ( DIRS => [ _script_dir(), ],
                  LIB_DIR => 'libperl',
@@ -559,8 +559,7 @@ sub _find_perl_type {
     my $vanilla_re = qr/(?:\b)vanilla[\-]?perl(?:\b)/i;
 
     my $perl_type = undef;
-    my $perl_binary = ($^X =~ m/^(.*perl.*?)$/i) ? $1 : 'perl';
-    if(`$perl_binary -v` =~ m/(?:\b)Active(?:State|Perl)(?:\b)/) {
+    if(`$^X -v` =~ m/(?:\b)Active(?:State|Perl)(?:\b)/) {
         $perl_type = 'ActiveState';
     }
     elsif(scalar(grep { m/$strawberry_re/ } @{$perl{'dirs'}}) >= 1) {
