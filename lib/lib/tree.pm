@@ -651,7 +651,7 @@ lib::tree - Add directory trees to the C<@INC> array at compile time.
 
 =head1 VERSION
 
-Version 0.01
+Version 0.02
 
 
 =head1 SYNOPSIS
