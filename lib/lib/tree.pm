@@ -7,7 +7,7 @@ use Config '%Config';
 use Carp qw( carp croak );
 use File::Spec::Functions qw( splitpath catpath
                               splitdir catdir
-                              file_name_is_absolute );
+                              canonpath file_name_is_absolute );
 use Cwd qw( getcwd realpath );
 
 
