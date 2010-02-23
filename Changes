@@ -1,5 +1,8 @@
 Revision history for lib-tree
 
+0.02    2010-02-22/11:30 pm EST
+        Fixed many small errors in .../lib/tree.pm and began adding tests.
+
 0.01    2010-02-20/2:00 pm EST
         First version, released on an unsuspecting world.
 
