@@ -14,6 +14,7 @@ my $builder = Module::Build->new(
         'File::Spec' => 0,
         'File::Spec::Functions' => 0,
         'File::Path' => 0,
+        'IO::Handle' => 0,
         'Cwd' => 0,
     },
     add_to_cleanup      => [ 'lib-tree-*' ],

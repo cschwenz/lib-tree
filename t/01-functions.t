@@ -1,18 +1,34 @@
 use warnings;
 use strict;
 use Test::More tests => 3;
+use lib './t';
 
 BEGIN {
+    # Test 1
     use_ok('lib::tree') || BAIL_OUT("Could not use 'lib::tree'!\n");
 }
+use TestUtils qw(function_present);
 
-sub function_present {
-    my $name = shift;
-    eval "lib::tree::${name}();";
-    if($@) { fail("Function $name is NOT present!"); }
-    else { pass("Function $name is present."); }
+
+{
+    # Test 2
+    my @data = function_present('import');
+    if($data[0]) {
+        pass($data[1]);
+    }
+    else {
+        fail($data[1]);
+    }
 }
 
-function_present('import');
-function_present('unimport');
+{
+    # Test 3
+    my @data = function_present('unimport');
+    if($data[0]) {
+        pass($data[1]);
+    }
+    else {
+        fail($data[1]);
+    }
+}
 

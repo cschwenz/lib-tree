@@ -11,6 +11,7 @@ build_requires( 'Test::More',
                 'File::Spec',
                 'File::Spec::Functions',
                 'File::Path',
+                'IO::Handle',
                 'Cwd',
               );
 

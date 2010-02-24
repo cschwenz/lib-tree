@@ -11,15 +11,21 @@ use File::Spec::Functions qw( splitpath catpath
 use Cwd qw( getcwd realpath );
 
 
+sub TRUE();
+sub TRUE() { 1; }
+sub FALSE();
+sub FALSE() { 0; }
+
+
 our $VERSION = '0.02';
 our @Original_INC = @INC;
 our %Default = ( DIRS => [ _script_dir(), ],
                  LIB_DIR => 'libperl',
                  INTERPRETER_DIR => 'PerlInterpreterName',
                );
+our $DEBUG = FALSE;
 
 
-my $DEBUG = 0;
 my $version = $Config{version};
 my $perl_version = sprintf('%vd', $^V);
 my $major_version = undef;
@@ -90,7 +96,7 @@ sub import {
     my $object = shift;
     my $class = ref($object) || $object;
     my %param = _parse_params(@_);
-    $DEBUG = ($param{DEBUG}) ? 1 : 0;
+    $DEBUG = ($param{DEBUG}) ? TRUE : FALSE;
 
     if($param{ORIGINAL}) {
       # Restore the original INC list.
@@ -130,7 +136,7 @@ sub unimport {
     my $object = shift;
     my $class = ref($object) || $object;
     my %param = _parse_params(@_);
-    $DEBUG = ($param{DEBUG}) ? 1 : 0;
+    $DEBUG = ($param{DEBUG}) ? TRUE : FALSE;
 
     my %remove = ();
     if($param{ORIGINAL}) {
@@ -170,13 +176,13 @@ sub unimport {
 sub _parse_params {
     my @list = @_;
 
-    my %param = ( DIRS => undef,
-                  LIB_DIR => undef,
-                  ORIGINAL => 0, # Boolean
-                  DEPTH_FIRST => 1, # Boolean
-                  HALT_ON_FIND => 1, # Boolean
+    my %param = ( DIRS => undef, # Array Reference
+                  LIB_DIR => undef, # Scalar
+                  ORIGINAL => FALSE, # Boolean
+                  DEPTH_FIRST => TRUE, # Boolean
+                  HALT_ON_FIND => TRUE, # Boolean
                   DELTA => 0, # Number
-                  DEBUG => 0, # Boolean
+                  DEBUG => FALSE, # Boolean
                 );
 
     # If the first value passed is a valid parameter name, then we were passed a
@@ -191,7 +197,7 @@ sub _parse_params {
     elsif(ref($list[0]) eq 'ARRAY') {
         my $array_ref = shift(@list);
         my @temp = ();
-        for(my $x = 0; $x < $#{$array_ref}; $x++) {
+        for(my $x = 0; $x <= $#{$array_ref}; $x++) {
             if(defined $array_ref->[$x]) {
                 $temp[$x] = $array_ref->[$x];
             }
@@ -221,7 +227,7 @@ sub _parse_params {
     # with a ':').
     elsif(scalar(@list) >= 1) {
         $param{LIB_DIR} = '';
-        $param{HALT_ON_FIND} = 0;
+        $param{HALT_ON_FIND} = FALSE;
         my $no_re = qr/NO[\-\_]/i;
         my %op = ( ORIGINAL =>
                        qr/(?:$no_re)?(?:RESTORE[\-\_])?ORIGINAL(?:[\-\_]INC)?/i,
@@ -295,24 +301,24 @@ sub _parse_params {
     }
     if( (defined $param{ORIGINAL}) &&
         ($param{ORIGINAL} =~ m/\A\s*(?:1|T(?:rue)?)\s*\z/i) ) {
-        $param{ORIGINAL} = 1;
+        $param{ORIGINAL} = TRUE;
     }
     else {
-        $param{ORIGINAL} = 0;
+        $param{ORIGINAL} = FALSE;
     }
     if( (defined $param{DEPTH_FIRST}) &&
         ($param{DEPTH_FIRST} =~ m/\A\s*(?:0|F(?:alse)?)\s*\z/i) ) {
-        $param{DEPTH_FIRST} = 0;
+        $param{DEPTH_FIRST} = FALSE;
     }
     else {
-        $param{DEPTH_FIRST} = 1;
+        $param{DEPTH_FIRST} = TRUE;
     }
     if( (defined $param{HALT_ON_FIND}) &&
         ($param{HALT_ON_FIND} =~ m/\A\s*(?:0|F(?:alse)?)\s*\z/i) ) {
-        $param{HALT_ON_FIND} = 0;
+        $param{HALT_ON_FIND} = FALSE;
     }
     else {
-        $param{HALT_ON_FIND} = 1;
+        $param{HALT_ON_FIND} = TRUE;
     }
     if( (defined $param{DELTA}) &&
         ($param{DELTA} =~ m/\A\s*[\+\-]?\s*(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][\+\-]?\d+)?\s*\z/) ) {
@@ -323,10 +329,10 @@ sub _parse_params {
     }
     if( (defined $param{DEBUG}) &&
         ($param{DEBUG} =~ m/\A\s*(?:1|T(?:rue)?)\s*\z/i) ) {
-        $param{DEBUG} = 1;
+        $param{DEBUG} = TRUE;
     }
     else {
-        $param{DEBUG} = 0;
+        $param{DEBUG} = FALSE;
     }
 
     return wantarray ? %param : \%param;
@@ -586,8 +592,20 @@ sub _find_perl_type {
     if($perl_type !~ m/Perl\z/) {
         $perl_type = "${perl_type}Perl";
     }
-    if($perl_type !~ m/\A\Q$osname\E[\-]/) {
-        $perl_type = "${osname}-${perl_type}";
+    my $os = $osname;
+    if((defined $archname64) && ($os !~ m/64/)) {
+        if(($os !~ m/32/) && ($os !~ m/x86/)) {
+            $os .= '64';
+        }
+        elsif($os !~ m/32/) {
+            $os =~ s/32/64/;
+        }
+        elsif($os !~ m/x86/) {
+            $os =~ s/x86/x64/;
+        }
+    }
+    if($perl_type !~ m/\A\Q$os\E[\-]/) {
+        $perl_type = "${os}-${perl_type}";
     }
     if($DEBUG) { print STDERR "***DEBUG: The Perl type is '$perl_type'.\n"; }
 
@@ -1040,6 +1058,14 @@ These are listed for completeness, as well as to make it easier for future
 maintainers to understand the code.
 
 =over
+
+=item B<TRUE>
+
+Used where the code is expecting a boolean value. Returns C<1>.
+
+=item B<FALSE>
+
+Used where the code is expecting a boolean value. Returns C<0>.
 
 =item B<_parse_params>
 
