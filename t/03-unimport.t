@@ -1,6 +1,6 @@
 use warnings;
 use strict;
-use Test::More tests => 2;
+use Test::More tests => 5;
 use File::Spec::Functions qw( splitpath catpath catfile
                               splitdir catdir
                               canonpath file_name_is_absolute );
@@ -50,6 +50,49 @@ my $test_lib = $TestUtils::test_lib;
     is_deeply( \@test_INC, \@initial_INC,
                'The unimport() function does not alter the @INC array when ' .
                'there is nothing to remove.' );
+}
+
+
+# The unimport() function can remove the default directory.
+{
+    my $lib_dir = undef;
+    {
+        my @data = create_test_lib();
+        if($data[0] != PASS) {
+            BAIL_OUT($data[1]);
+        }
+        elsif($data[0] == PASS) {
+            $lib_dir = $data[1];
+        }
+    }
+
+    lib::tree->import();
+    my @test_INC = ( @INC );
+    my ($path) = grep { dir_equal($lib_dir, $_) == 1 } @test_INC;
+    # Test 3
+    cmp_ok( canonpath($path), 'eq', canonpath($lib_dir),
+            'The import() function can find the default directory.' );
+
+    lib::tree->unimport();
+    @test_INC = ( @INC );
+    ($path) = grep { dir_equal($lib_dir, $_) == 1 } @test_INC;
+    my $undef_path = (defined $path) ? "defined ($path)" : 'undef';
+    # Test 4
+    cmp_ok( $undef_path, 'eq', 'undef',
+            'The unimport() function can remove the default directory.' );
+
+    {
+        my @data = destroy_test_lib();
+        if($data[0] != PASS) {
+            BAIL_OUT($data[1]);
+        }
+    }
+    lib::tree->import(':ORIGINAL');
+    @test_INC = ( @INC );
+    # Test 5
+    is_deeply( \@test_INC, \@initial_INC,
+               'The import() function can reset the @INC array back to its ' .
+               'original content via \':ORIGINAL\'.' );
 }
 
 

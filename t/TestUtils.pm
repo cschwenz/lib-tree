@@ -26,9 +26,8 @@ sub ERROR() { -2; }
 our @ISA = ('Exporter');
 our @EXPORT = ();
 our @EXPORT_OK = ( 'function_present', 'dir_equal',
-                   'create_test_lib', 'destroy_test_lib',
-                   'cleanup_tests', 'TRUE', 'FALSE',
-                   'PASS', 'FAIL', 'WARN', 'ERROR' );
+                   'create_test_lib', 'destroy_test_lib', 'cleanup_tests',
+                   'TRUE', 'FALSE', 'PASS', 'FAIL', 'WARN', 'ERROR' );
 our $VERSION = '1.00';
 
 
@@ -144,6 +143,7 @@ sub destroy_test_lib {
     return @data;
 }
 
+
 sub cleanup_tests {
     my @data = (FAIL, "Unknown error!");
     my @list = (undef, 'libperl', 'custom-perl-lib', 'custom-perl');
@@ -169,6 +169,7 @@ sub cleanup_tests {
 
     return @data;
 }
+
 
 1;
 __END__

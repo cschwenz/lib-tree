@@ -231,9 +231,10 @@ my $test_lib = $TestUtils::test_lib;
                 if($redirect_status) {
                     $redirect_STDERR = TRUE;
                 }
-                print ORIG_STDERR "# Redirecting STDERR to '$temp_filename' " .
-                                  "so the output of lib::tree in debug mode " .
-                                  "does not clutter the screen.\n";
+                print ORIG_STDERR
+                        "\n\n" .
+                        "# Redirecting STDERR to '$temp_filename' to catch\n" .
+                        "# the output of lib::tree in debug mode.\n";
             }
         }
         lib::tree->import($custom_libs[0], $custom_libs[1], ':DEBUG');
@@ -260,7 +261,7 @@ my $test_lib = $TestUtils::test_lib;
         if($redirect_STDERR) {
             close(STDERR);
             open(STDERR, ">&ORIG_STDERR");
-            print STDERR "# The STDERR handle is now restored.\n";
+            print STDERR "\n\n" . "# The STDERR handle is now restored.\n\n";
         }
     }
 
