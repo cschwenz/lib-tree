@@ -187,7 +187,8 @@ sub _parse_params {
 
     # If the first value passed is a valid parameter name, then we were passed a
     # hash.
-    if(scalar(grep { uc($list[0]) eq $_ } keys(%param)) >= 1) {
+    if( (scalar(@list) >= 2) &&
+        (scalar(grep { uc($list[0]) eq $_ } keys(%param)) >= 1) ) {
         for(my $x = 0; $x <= $#list; $x+=2) {
             $param{uc($list[$x])} = $list[$x + 1];
         }
@@ -613,10 +614,20 @@ sub _find_perl_type {
 }
 
 
+sub _valid_path {
+    my $path = shift;
+    return FALSE if(not defined $path);
+    my $value = ( (-e $path) &&
+                  ( (-d $path) || ((-f $path) && ($path =~ m/\.par\z/i)) ) &&
+                  (-r $path) ) ? TRUE : FALSE;
+    return $value;
+}
+
+
 sub _glob_dir {
     my $dir = shift;
 
-    my @list = grep { (-e $_) && (-d $_) && (-r $_) }
+    my @list = grep { _valid_path($_) }
                map { my $p = realpath($_);
                      if(not $p) { $p = $_; }
                      $p; }
@@ -632,7 +643,7 @@ sub _add_to_list {
     my $lib_dir = shift;
 
     foreach my $dir (@{$dirs_ref}) {
-        if((-e $dir) && (-d $dir) && (-r $dir)) {
+        if(_valid_path($dir)) {
             push @{$list_ref}, $dir;
             if(not defined $lib_dir) {
                 $lib_dir = $dir;
@@ -1117,6 +1128,11 @@ Return the directory name to look for when searching for this perl's binary
 modules (i.e., Perl modules which call out to dynamic libraries, modules which
 play well with only one type of perl interpreter, etc.).  This subroutine is the
 one most likely to need periodic maintenance.
+
+=item B<_valid_path>
+
+Canonize what constitutes a valid path.  Used by the C<_glob_dir()> and
+C<_add_to_list()> subroutines.
 
 =item B<_glob_dir>
 
