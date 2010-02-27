@@ -353,7 +353,7 @@ sub _script_dir {
     if(not $full_path) {
         $full_path = $path;
     }
-    if((not -e $full_path) || (not -d $full_path) || (not -r $full_path)) {
+    if(not _valid_path($full_path)) {
         $path = catdir($cwd{'volume'}, @{$cwd{'dirs'}});
         $full_path = realpath($path);
         if(not $full_path) {
@@ -483,26 +483,26 @@ sub _find_INC_dirs {
     my @inc_dirs = ();
     foreach my $dir (@{$dirs_ref}) {
         next if(not defined $dir);
-        next if((not -e $dir) || (not -d $dir) || (not -r $dir));
+        next if(not _valid_path($dir));
         push(@inc_dirs, $dir);
         # Add the library tree under each library directory we found to the
         # INC array.
         my @d = _get_dirs($dir);
         foreach (@d) {
-            if((-e $_) && (-d $_) && (-r $_)) {
+            if(_valid_path($_)) {
               push(@inc_dirs, $_);
             }
         }
         my %root = _get_path_hash($dir);
         my $interp_dir = catdir( $root{'volume'}, @{$root{'dirs'}},
                                  $Default{INTERPRETER_DIR}, _find_perl_type() );
-        if((-e $interp_dir) && (-d $interp_dir) && (-r $interp_dir)) {
+        if(_valid_path($interp_dir)) {
             # If we found a directory which differentiates the Perl library
             # by interpreter type, then add the library tree under the
             # directory which matches our interpreter to the INC array.
             my @d = _get_dirs($interp_dir);
             foreach (@d) {
-                if((-e $_) && (-d $_) && (-r $_)) {
+                if(_valid_path($_)) {
                     push(@inc_dirs, $_);
                 }
             }
@@ -1131,8 +1131,9 @@ one most likely to need periodic maintenance.
 
 =item B<_valid_path>
 
-Canonize what constitutes a valid path.  Used by the C<_glob_dir()> and
-C<_add_to_list()> subroutines.
+Canonize what constitutes a valid path.  Used in the C<_glob_dir()> and
+C<_add_to_list()> subroutines and anywhere else we need to determine if a given
+path is valid for our uses.
 
 =item B<_glob_dir>
 

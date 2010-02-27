@@ -1,6 +1,6 @@
 use warnings;
 use strict;
-use Test::More tests => 5;
+use Test::More tests => 7;
 use File::Spec::Functions qw( splitpath catpath catfile
                               splitdir catdir
                               canonpath file_name_is_absolute );
@@ -94,6 +94,26 @@ my $test_lib = $TestUtils::test_lib;
                'The import() function can reset the @INC array back to its ' .
                'original content via \':ORIGINAL\'.' );
 }
+
+
+# The unimport() function can remove the original @INC array values.
+{
+    lib::tree->unimport(':ORIGINAL');
+    my @test_INC = ( @INC );
+    my @empty = ();
+    # Test 6
+    is_deeply( \@test_INC, \@empty,
+               'The unimport() function can remove the original @INC ' .
+               'array values.' );
+
+    lib::tree->import(':ORIGINAL');
+    @test_INC = ( @INC );
+    # Test 7
+    is_deeply( \@test_INC, \@initial_INC,
+               'The import() function can reset the @INC array back to its ' .
+               'original content via \':ORIGINAL\'.' );
+}
+
 
 
 END {
