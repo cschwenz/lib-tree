@@ -26,7 +26,8 @@ sub ERROR() { -2; }
 our @ISA = ('Exporter');
 our @EXPORT = ();
 our @EXPORT_OK = ( 'function_present', 'dir_equal',
-                   'create_test_lib', 'destroy_test_lib', 'cleanup_tests',
+                   'create_test_lib', 'create_test_lib_tree',
+                   'destroy_test_lib', 'cleanup_tests',
                    'TRUE', 'FALSE', 'PASS', 'FAIL', 'WARN', 'ERROR' );
 our $VERSION = '1.00';
 
@@ -108,6 +109,119 @@ sub create_test_lib {
         chmod(0777, $lib_dir);
         @data = (PASS, $lib_dir);
     }
+
+    return @data;
+}
+
+
+sub create_test_lib_tree {
+    my $dir = shift;
+
+    my @data = (FAIL, "Unknown error!");
+    my $status = undef;
+    my $lib_dir = undef;
+    {
+        use Config;
+        my $version = $Config{version};
+        my $archname = $Config{archname};
+        my $archname64 = $Config{archname64};
+        my @inc_ver_list = reverse split(/[ \t]+/, $Config{inc_version_list});
+
+        @data = create_test_lib($dir);
+        if($data[0] != PASS) {
+            return @data;
+        }
+        elsif($data[0] == PASS) {
+            $status = $data[0];
+            $lib_dir = $data[1];
+        }
+        @data = create_test_lib(catdir($dir, 'lib'));
+        if($data[0] != PASS) {
+            return @data;
+        }
+        @data = create_test_lib(catdir($dir, 'site', 'lib'));
+        if($data[0] != PASS) {
+            return @data;
+        }
+        foreach my $d (@inc_ver_list, $archname, $archname64, $version) {
+            next if(not $d);
+            @data = create_test_lib(catdir($dir, 'lib', $d));
+            if($data[0] != PASS) {
+                return @data;
+            }
+            @data = create_test_lib(catdir($dir, 'site', 'lib', $d));
+            if($data[0] != PASS) {
+                return @data;
+            }
+            if($d eq $version) {
+                foreach my $a ($archname, $archname64) {
+                    next if(not $a);
+                    @data = create_test_lib(catdir($dir, 'lib', $d, $a));
+                    if($data[0] != PASS) {
+                        return @data;
+                    }
+                    @data = create_test_lib(catdir( $dir, 'site', 'lib',
+                                                    $d, $a ));
+                    if($data[0] != PASS) {
+                        return @data;
+                    }
+                }
+            }
+        }
+        my $pin = 'PerlInterpreterName';
+        @data = create_test_lib(catdir($dir, $pin));
+        if($data[0] != PASS) {
+            return @data;
+        }
+        my @ptd = ( 'MSWin32-ActiveStatePerl', 'MSWin32-StrawberryPerl',
+                    'MSWin32-VanillaPerl', 'MSWin64-ActiveStatePerl',
+                    'MSWin64-StrawberryPerl', 'MSWin64-VanillaPerl',
+                    'cygwin-UsrBinPerl', 'cygwin-UsrLocalPerl',
+                    'cygwin64-UsrBinPerl', 'cygwin64-UsrLocalPerl',
+                    'linux-UsrBinPerl', 'linux-UsrLocalPerl', );
+        foreach my $pd (@ptd) {
+            @data = create_test_lib(catdir($dir, $pin, $pd));
+            if($data[0] != PASS) {
+                return @data;
+            }
+            @data = create_test_lib(catdir($dir, $pin, $pd, 'lib'));
+            if($data[0] != PASS) {
+                return @data;
+            }
+            @data = create_test_lib(catdir($dir, $pin, $pd, 'site', 'lib'));
+            if($data[0] != PASS) {
+                return @data;
+            }
+            foreach my $d (@inc_ver_list, $archname, $archname64, $version) {
+                next if(not $d);
+                @data = create_test_lib(catdir($dir, $pin, $pd, 'lib', $d));
+                if($data[0] != PASS) {
+                    return @data;
+                }
+                @data = create_test_lib(catdir( $dir, $pin, $pd, 'site', 'lib',
+                                                $d ));
+                if($data[0] != PASS) {
+                    return @data;
+                }
+                if($d eq $version) {
+                    foreach my $a ($archname, $archname64) {
+                        next if(not $a);
+                        @data = create_test_lib(catdir( $dir, $pin, $pd, 'lib',
+                                                        $d, $a ));
+                        if($data[0] != PASS) {
+                            return @data;
+                        }
+                        @data = create_test_lib(catdir( $dir, $pin, $pd, 'site',
+                                                        'lib', $d, $a ));
+                        if($data[0] != PASS) {
+                            return @data;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    @data = ($status, $lib_dir);
 
     return @data;
 }

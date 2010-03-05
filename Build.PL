@@ -8,14 +8,16 @@ my $builder = Module::Build->new(
     dist_author         => q{Calvin Schwenzfeier <calvin.schwenzfeier@gmail.com>},
     dist_version_from   => 'lib/lib/tree.pm',
     build_requires => {
-        'Test::More' => 0,
         'Config' => 0,
         'Carp' => 0,
         'File::Spec' => 0,
         'File::Spec::Functions' => 0,
         'File::Path' => 0,
-        'IO::Handle' => 0,
         'Cwd' => 0,
+    },
+    test_requires => {
+        'Test::More' => 0,
+        'IO::Handle' => 0,
     },
     add_to_cleanup      => [ 'lib-tree-*' ],
     create_makefile_pl => 'traditional',

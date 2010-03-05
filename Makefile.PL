@@ -5,15 +5,17 @@ all_from 'lib/lib/tree.pm';
 author   q{Calvin Schwenzfeier <calvin.schwenzfeier@gmail.com>};
 license  'perl';
 
-build_requires( 'Test::More',
-                'Config',
+build_requires( 'Config',
                 'Carp',
                 'File::Spec',
                 'File::Spec::Functions',
                 'File::Path',
-                'IO::Handle',
                 'Cwd',
               );
+
+test_requires( 'Test::More',
+               'IO::Handle',
+             );
 
 auto_install;
 

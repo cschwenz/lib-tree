@@ -4,7 +4,9 @@ NAME and VERSION
 
 lib-tree
 
-0.02 - Fixed many small errors in .../lib/tree.pm and began adding tests.
+0.03    2010-03-05/08:29 am EST
+        * More bug fixes.
+        * The tests now cover more of the functionality provided by lib::tree.
 
 ===========================================================================
 
@@ -13,14 +15,19 @@ lib-tree
 DEPENDENCIES
 ---------------------------------------------------------------------------
 
-Test::More
 Config
 Carp
 File::Spec
 File::Spec::Functions
 File::Path
-IO::Handle
 Cwd
+
+
+---------------------------------------------------------------------------
+Dependencies for Testing
+---------------------------------------------------------------------------
+Test::More
+IO::Handle
 
 ===========================================================================
 

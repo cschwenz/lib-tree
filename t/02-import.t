@@ -1,6 +1,6 @@
 use warnings;
 use strict;
-use Test::More tests => 15;
+use Test::More tests => 23;
 use File::Spec::Functions qw( splitpath catpath catfile
                               splitdir catdir
                               canonpath file_name_is_absolute );
@@ -16,8 +16,9 @@ BEGIN {
     # Test 1
     require_ok('lib::tree') || BAIL_OUT("Could not require 'lib::tree'!\n");
 }
-use TestUtils qw( create_test_lib destroy_test_lib
-                  dir_equal cleanup_tests TRUE FALSE
+use TestUtils qw( create_test_lib create_test_lib_tree
+                  destroy_test_lib cleanup_tests
+                  dir_equal TRUE FALSE
                   PASS FAIL WARN ERROR );
 
 my $cwd = $TestUtils::cwd;
@@ -213,7 +214,12 @@ my $test_lib = $TestUtils::test_lib;
                'The import() function can load multiple directories when ' .
                'called with a hash.' );
 
-    {
+    $@ = '';
+    eval { require IO::Handle; };
+    my $eval_error = $@;
+    SKIP: {
+        skip('These tests require the IO::Handle module.', 3) if($eval_error);
+
         use IO::Handle;
         lib::tree->import(':ORIGINAL');
         my $redirect_STDERR = FALSE;
@@ -277,6 +283,92 @@ my $test_lib = $TestUtils::test_lib;
     is_deeply( \@test_INC, \@initial_INC,
                'The import() function can reset the @INC array back to its ' .
                'original content via \':RESTORE-ORIGINAL-INC\'.' );
+}
+
+
+# The import() function can find a custom named directory tree.
+{
+    use Config;
+    my $version = $Config{version};
+    my $archname = $Config{archname};
+    my $archname64 = $Config{archname64};
+    my @inc_version_list = reverse split(/[ \t]+/, $Config{inc_version_list});
+
+    my $custom_name = 'custom-perl';
+    my $custom_lib = undef;
+    {
+        my @data = create_test_lib_tree($custom_name);
+        if($data[0] != PASS) {
+            BAIL_OUT($data[1]);
+        }
+        elsif($data[0] == PASS) {
+            $custom_lib = $data[1];
+        }
+    }
+
+    lib::tree->import(LIB_DIR => $custom_name);
+    my @test_INC = ( @INC );
+    my ($path) = grep { dir_equal($custom_lib, $_) == 1 } @test_INC;
+    # Test 16
+    cmp_ok( canonpath($path), 'eq', canonpath($custom_lib),
+            'The import() function can find a custom named directory.' );
+
+    SKIP: {
+        skip('The %Config value for the version number is empty.', 2)
+                unless((defined $version) && $version);
+        my @path_list = grep { m/(?:\b)\Q$version\E(?:\b)/ } @test_INC;
+        # Test 17
+        cmp_ok( scalar(@path_list), '==', 8,
+                'The import() function can find version directories within ' .
+                'a custom named directory.' );
+        # Test 18
+        cmp_ok( canonpath($path_list[-1]), 'eq', canonpath(catdir($custom_lib, 'lib', $version)),
+                'The import() function puts the version directories in the ' .
+                'correct order (most specific to least specific).' );
+    }
+
+    SKIP: {
+        skip('The %Config value for the architecture name is empty.', 2)
+                unless((defined $archname) && $archname);
+        my @path_list = grep { m/(?:\b)\Q$archname\E(?:\b)/ } @test_INC;
+        # Test 19
+        cmp_ok( scalar(@path_list), '==', 8,
+                'The import() function can find the architecture name ' .
+                'directories within a custom named directory.' );
+        # Test 20
+        cmp_ok( canonpath($path_list[-1]), 'eq', canonpath(catdir($custom_lib, 'lib', $archname)),
+                'The import() function puts the architecture name ' .
+                'directories in the correct order (most specific to least ' .
+                'specific).' );
+    }
+
+    SKIP: {
+        skip('The %Config value for the 64-bit architecture name is empty.', 2)
+                unless((defined $archname64) && $archname64);
+        my @path_list = grep { m/(?:\b)\Q$archname64\E(?:\b)/ } @test_INC;
+        # Test 21
+        cmp_ok( scalar(@path_list), '==', 8,
+                'The import() function can find 64-bit architecture name ' .
+                'directories within a custom named directory.' );
+        # Test 22
+        cmp_ok( canonpath($path_list[-1]), 'eq', canonpath(catdir($custom_lib, 'lib', $archname64)),
+                'The import() function puts the 64-bit architecture name ' .
+                'directories in the correct order (most specific to least ' .
+                'specific).' );
+    }
+
+    {
+        my @data = destroy_test_lib($custom_lib);
+        if($data[0] != PASS) {
+            BAIL_OUT($data[1]);
+        }
+    }
+    lib::tree->import(':RESTORE-ORIGINAL');
+    @test_INC = ( @INC );
+    # Test 23
+    is_deeply( \@test_INC, \@initial_INC,
+               'The import() function can reset the @INC array back to its ' .
+               'original content via \':RESTORE-ORIGINAL\'.' );
 }
 
 

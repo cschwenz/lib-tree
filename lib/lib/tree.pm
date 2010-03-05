@@ -17,7 +17,7 @@ sub FALSE();
 sub FALSE() { 0; }
 
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 our @Original_INC = @INC;
 our %Default = ( DIRS => [ _script_dir(), ],
                  LIB_DIR => 'libperl',
@@ -598,10 +598,10 @@ sub _find_perl_type {
         if(($os !~ m/32/) && ($os !~ m/x86/)) {
             $os .= '64';
         }
-        elsif($os !~ m/32/) {
+        elsif($os =~ m/32/) {
             $os =~ s/32/64/;
         }
-        elsif($os !~ m/x86/) {
+        elsif($os =~ m/x86/) {
             $os =~ s/x86/x64/;
         }
     }
@@ -680,7 +680,7 @@ lib::tree - Add directory trees to the C<@INC> array at compile time.
 
 =head1 VERSION
 
-Version 0.02
+Version 0.03
 
 
 =head1 SYNOPSIS
