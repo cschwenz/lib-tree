@@ -2,11 +2,10 @@ package TestUtils;
 
 use warnings;
 use strict;
-use File::Spec::Functions qw( splitpath catpath
-                              splitdir catdir
-                              canonpath file_name_is_absolute );
+use File::Spec;
 use File::Path qw(mkpath rmtree);
 require Cwd;
+require lib::tree;
 require Exporter;
 
 sub TRUE();
@@ -32,8 +31,9 @@ our @EXPORT_OK = ( 'function_present', 'dir_equal',
 our $VERSION = '1.00';
 
 
+our $FS = 'File::Spec';
 our $cwd = Cwd::getcwd();
-our $test_lib = catdir($cwd, 'libperl');
+our $test_lib = $FS->catdir($cwd, 'libperl');
 
 
 
@@ -58,16 +58,16 @@ sub dir_equal {
     my $dir_a = shift;
     my $dir_b = shift;
 
-    my @list_a = splitpath($dir_a);
+    my @list_a = $FS->splitpath($dir_a);
     {
       my $pos = 1;
-      my @list_a_dirs = splitdir($list_a[$pos]);
+      my @list_a_dirs = $FS->splitdir($list_a[$pos]);
       splice(@list_a, $pos, 1, @list_a_dirs);
     }
-    my @list_b = splitpath($dir_b);
+    my @list_b = $FS->splitpath($dir_b);
     {
       my $pos = 1;
-      my @list_b_dirs = splitdir($list_b[$pos]);
+      my @list_b_dirs = $FS->splitdir($list_b[$pos]);
       splice(@list_b, $pos, 1, @list_b_dirs);
     }
     return 0 if(scalar(@list_a) != scalar(@list_b));
@@ -85,7 +85,7 @@ sub create_test_lib {
     my $dir = shift;
 
     my $lib_dir = ((defined $dir) && (length($dir) >= 1))
-                      ? catdir($cwd, $dir)
+                      ? $FS->catdir($cwd, $dir)
                       : $test_lib;
     my @data = (FAIL, "Unknown error!");
     if((not -e $lib_dir) || (not -d $lib_dir)) {
@@ -135,33 +135,33 @@ sub create_test_lib_tree {
             $status = $data[0];
             $lib_dir = $data[1];
         }
-        @data = create_test_lib(catdir($dir, 'lib'));
+        @data = create_test_lib($FS->catdir($dir, 'lib'));
         if($data[0] != PASS) {
             return @data;
         }
-        @data = create_test_lib(catdir($dir, 'site', 'lib'));
+        @data = create_test_lib($FS->catdir($dir, 'site', 'lib'));
         if($data[0] != PASS) {
             return @data;
         }
         foreach my $d (@inc_ver_list, $archname, $archname64, $version) {
             next if(not $d);
-            @data = create_test_lib(catdir($dir, 'lib', $d));
+            @data = create_test_lib($FS->catdir($dir, 'lib', $d));
             if($data[0] != PASS) {
                 return @data;
             }
-            @data = create_test_lib(catdir($dir, 'site', 'lib', $d));
+            @data = create_test_lib($FS->catdir($dir, 'site', 'lib', $d));
             if($data[0] != PASS) {
                 return @data;
             }
             if($d eq $version) {
                 foreach my $a ($archname, $archname64) {
                     next if(not $a);
-                    @data = create_test_lib(catdir($dir, 'lib', $d, $a));
+                    @data = create_test_lib($FS->catdir($dir, 'lib', $d, $a));
                     if($data[0] != PASS) {
                         return @data;
                     }
-                    @data = create_test_lib(catdir( $dir, 'site', 'lib',
-                                                    $d, $a ));
+                    @data = create_test_lib($FS->catdir( $dir, 'site', 'lib',
+                                                         $d, $a ));
                     if($data[0] != PASS) {
                         return @data;
                     }
@@ -169,50 +169,58 @@ sub create_test_lib_tree {
             }
         }
         my $pin = 'PerlInterpreterName';
-        @data = create_test_lib(catdir($dir, $pin));
+        @data = create_test_lib($FS->catdir($dir, $pin));
         if($data[0] != PASS) {
             return @data;
         }
-        my @ptd = ( 'MSWin32-ActiveStatePerl', 'MSWin32-StrawberryPerl',
-                    'MSWin32-VanillaPerl', 'MSWin64-ActiveStatePerl',
-                    'MSWin64-StrawberryPerl', 'MSWin64-VanillaPerl',
-                    'cygwin-UsrBinPerl', 'cygwin-UsrLocalPerl',
-                    'cygwin64-UsrBinPerl', 'cygwin64-UsrLocalPerl',
-                    'linux-UsrBinPerl', 'linux-UsrLocalPerl', );
+        my @ptd = ( 'MSWin32-ActiveStatePerl', 'MSWin64-ActiveStatePerl',
+                    'MSWin32-StrawberryPerl', 'MSWin64-StrawberryPerl',
+                    'MSWin32-VanillaPerl', 'MSWin64-VanillaPerl',
+                    'cygwin-UsrBinPerl', 'cygwin64-UsrBinPerl',
+                    'cygwin-UsrLocalPerl', 'cygwin64-UsrLocalPerl',
+                    'linux-UsrBinPerl', 'linux64-UsrBinPerl',
+                    'linux-UsrLocalPerl', 'linux64-UsrLocalPerl',
+                    'linux-ActiveStatePerl', 'linux64-ActiveStatePerl', );
+        if(scalar(grep { lib::tree::_find_perl_type() eq $_ } @ptd) < 1) {
+            push @ptd, lib::tree::_find_perl_type();
+        }
         foreach my $pd (@ptd) {
-            @data = create_test_lib(catdir($dir, $pin, $pd));
+            @data = create_test_lib($FS->catdir($dir, $pin, $pd));
             if($data[0] != PASS) {
                 return @data;
             }
-            @data = create_test_lib(catdir($dir, $pin, $pd, 'lib'));
+            @data = create_test_lib($FS->catdir($dir, $pin, $pd, 'lib'));
             if($data[0] != PASS) {
                 return @data;
             }
-            @data = create_test_lib(catdir($dir, $pin, $pd, 'site', 'lib'));
+            @data = create_test_lib($FS->catdir( $dir, $pin, $pd,
+                                                 'site', 'lib' ));
             if($data[0] != PASS) {
                 return @data;
             }
             foreach my $d (@inc_ver_list, $archname, $archname64, $version) {
                 next if(not $d);
-                @data = create_test_lib(catdir($dir, $pin, $pd, 'lib', $d));
+                @data = create_test_lib($FS->catdir( $dir, $pin, $pd,
+                                                     'lib', $d ));
                 if($data[0] != PASS) {
                     return @data;
                 }
-                @data = create_test_lib(catdir( $dir, $pin, $pd, 'site', 'lib',
-                                                $d ));
+                @data = create_test_lib($FS->catdir( $dir, $pin, $pd,
+                                                     'site', 'lib', $d ));
                 if($data[0] != PASS) {
                     return @data;
                 }
                 if($d eq $version) {
                     foreach my $a ($archname, $archname64) {
                         next if(not $a);
-                        @data = create_test_lib(catdir( $dir, $pin, $pd, 'lib',
-                                                        $d, $a ));
+                        @data = create_test_lib($FS->catdir( $dir, $pin, $pd,
+                                                             'lib', $d, $a ));
                         if($data[0] != PASS) {
                             return @data;
                         }
-                        @data = create_test_lib(catdir( $dir, $pin, $pd, 'site',
-                                                        'lib', $d, $a ));
+                        @data = create_test_lib($FS->catdir( $dir, $pin, $pd,
+                                                             'site', 'lib',
+                                                             $d, $a ));
                         if($data[0] != PASS) {
                             return @data;
                         }
@@ -231,7 +239,7 @@ sub destroy_test_lib {
     my $dir = shift;
 
     my $lib_dir = ((defined $dir) && (length($dir) >= 1))
-                      ? catdir($cwd, $dir)
+                      ? $FS->catdir($cwd, $dir)
                       : $test_lib;
     my @data = (FAIL, "Unknown error!");
     if((-e $lib_dir) && (-d $lib_dir)) {
@@ -263,7 +271,8 @@ sub cleanup_tests {
     my @list = (undef, 'libperl', 'custom-perl-lib', 'custom-perl');
     my $status = opendir(my $DIR_FH, $cwd);
     if($status) {
-        my @temp = grep { (-e catdir($cwd, $_)) && (-d catdir($cwd, $_)) }
+        my @temp = grep { (-e $FS->catdir($cwd, $_)) &&
+                          (-d $FS->catdir($cwd, $_)) }
                    grep { $_ =~ m/\A\s*td_[a-zA-Z0-9]{5}\s*\z/ }
                    readdir($DIR_FH);
         if(scalar(@temp) >= 1) {

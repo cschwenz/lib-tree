@@ -8,13 +8,12 @@ license  'perl';
 build_requires( 'Config',
                 'Carp',
                 'File::Spec',
-                'File::Spec::Functions',
-                'File::Path',
                 'Cwd',
               );
 
 test_requires( 'Test::More',
                'IO::Handle',
+               'File::Path',
              );
 
 auto_install;

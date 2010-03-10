@@ -52,7 +52,7 @@
 </p>
 <hr />
 <h1><a name="version">VERSION</a></h1>
-<p>Version 0.03</p>
+<p>Version 0.04</p>
 <p>
 <a href="#__index__"><small>Back to top</small></a>
 </p>
@@ -258,6 +258,26 @@ criteria.  May be negated by prepending <code>NO-</code> (i.e., <code>:NO-HALT</
 </dd>
 </li>
 </dl>
+<p>Also, <code>lib::tree</code> uses the <code>File::Spec</code> module methods for all path
+manipulation.  As an added bonus, <code>lib::tree</code> allows you to specify which
+flavour of <code>File::Spec</code> you want <code>lib::tree</code> to use via the <code>$FS</code> variable
+(defaults to <code>'File::Spec'</code>).</p>
+<p>Should you want <code>lib::tree</code> to use a specific flavour of <code>File::Spec</code>, use
+something like the following code:</p>
+<pre>
+    BEGIN {
+        require lib::tree;
+        $lib::tree::FS = 'File::Spec::Unix';
+    }
+    use lib::tree ('/some/directory/', 'another/directory/');
+    
+    #  ~~~ or ~~~  
+    
+    BEGIN {
+        require lib::tree;
+        $lib::tree::FS = 'File::Spec::Unix';
+        lib::tree-&gt;import('/some/directory/', 'another/directory/');
+    }</pre>
 <p>
 <a href="#__index__"><small>Back to top</small></a>
 </p>
@@ -579,11 +599,8 @@ second array reference onto the array referenced by the first value.</p>
 </p>
 <hr />
 <h1><a name="bugs">BUGS</a></h1>
-<p>Please report any bugs or feature requests to
-<code>&lt;bug-lib-tree at rt.cpan.org&gt;</code>, or through the web interface at
-<a href="http://rt.cpan.org/NoAuth/ReportBug.html?Queue=lib-tree">http://rt.cpan.org/NoAuth/ReportBug.html</a>.  I will be notified,
-and then you'll automatically be notified of progress on your bug as I make
-changes.</p>
+<p>Please report any bugs or feature requests through GitHub's issue tracker web
+interface at <a href="http://github.com/cschwenz/lib-tree/issues">http://github.com/cschwenz/lib-tree/issues</a>.</p>
 <p>
 <a href="#__index__"><small>Back to top</small></a>
 </p>
@@ -594,21 +611,21 @@ changes.</p>
     perldoc lib::tree</pre>
 <p>You can also look for information at:</p>
 <ul>
-<li><strong><a name="item_rt_3a_cpan_27s_request_tracker">RT: CPAN's request tracker</a></strong>
+<li><strong><a name="item_docs">The <code>lib::tree</code> online docs (hosted on GitHub):</a></strong>
 
-<p><a href="http://rt.cpan.org/NoAuth/Bugs.html?Dist=lib-tree">http://rt.cpan.org/NoAuth/Bugs.html</a></p>
+<p><a href="http://cschwenz.github.com/lib-tree/lib/tree.html">http://cschwenz.github.com/lib-tree/lib/tree.html</a></p>
 </li>
-<li><strong><a name="item_annocpan_3a_annotated_cpan_documentation">AnnoCPAN: Annotated CPAN documentation</a></strong>
+<li><strong><a name="item_github_27s_issue_tracker_3a">GitHub's issue tracker:</a></strong>
 
-<p><a href="http://annocpan.org/dist/lib-tree">http://annocpan.org/dist/lib-tree</a></p>
+<p><a href="http://github.com/cschwenz/lib-tree/issues">http://github.com/cschwenz/lib-tree/issues</a></p>
 </li>
-<li><strong><a name="item_cpan_ratings">CPAN Ratings</a></strong>
+<li><strong><a name="item_wiki">The <code>lib::tree</code> wiki (hosted on GitHub):</a></strong>
 
-<p><a href="http://cpanratings.perl.org/d/lib-tree">http://cpanratings.perl.org/d/lib-tree</a></p>
+<p><a href="http://wiki.github.com/cschwenz/lib-tree/">http://wiki.github.com/cschwenz/lib-tree/</a></p>
 </li>
-<li><strong><a name="item_search_cpan">Search CPAN</a></strong>
+<li><strong><a name="item_code">Source code (hosted on GitHub):</a></strong>
 
-<p><a href="http://search.cpan.org/dist/lib-tree/">http://search.cpan.org/dist/lib-tree/</a></p>
+<p><a href="http://github.com/cschwenz/lib-tree">http://github.com/cschwenz/lib-tree</a></p>
 </li>
 </ul>
 <p>
@@ -643,10 +660,56 @@ chosen.&rdquo;</p>
 <hr />
 <h1><a name="license_and_copyright">LICENSE AND COPYRIGHT</a></h1>
 <p>Copyright 2010 Calvin Schwenzfeier.</p>
-<p>This program is free software; you can redistribute it and/or modify it
-under the terms of either: the GNU General Public License as published
-by the Free Software Foundation; or the Artistic License.</p>
+<p>This program is free software; you can redistribute it and/or modify it under
+the terms of either:</p>
+<dl>
+<dt><strong><a name="item_a_29">a)</a></strong>
+
+<dd>
+<p>the GNU General Public License [<a href="http://dev.perl.org/licenses/gpl1.html">http://dev.perl.org/licenses/gpl1.html</a>] as published by the Free Software Foundation [<a href="http://www.fsf.org/">http://www.fsf.org/</a>]; either version 1 [<a href="http://dev.perl.org/licenses/gpl1.html">http://dev.perl.org/licenses/gpl1.html</a>], or (at your option) any later version [<a href="http://www.fsf.org/licensing/licenses/#GNUGPL">http://www.fsf.org/licensing/licenses/#GNUGPL</a>], or</p>
+</dd>
+</li>
+<dt><strong><a name="item_b_29">b)</a></strong>
+
+<dd>
+<p>the ``Artistic License'' [<a href="http://dev.perl.org/licenses/artistic.html">http://dev.perl.org/licenses/artistic.html</a>].</p>
+</dd>
+</li>
+</dl>
+<pre>
+    
+    For those of you that choose to use the GNU General Public License, my
+    interpretation of the GNU General Public License is that no Perl script
+    falls under the terms of the GPL unless you explicitly put said script under
+    the terms of the GPL yourself.
+    
+    Furthermore, any object code linked with perl does not automatically fall
+    under the terms of the GPL, provided such object code only adds definitions
+    of subroutines and variables, and does not otherwise impair the resulting
+    interpreter from executing any standard Perl script. I consider linking in C
+    subroutines in this manner to be the moral equivalent of defining
+    subroutines in the Perl language itself. You may sell such an object file as
+    proprietary provided that you provide or offer to provide the Perl source,
+    as specified by the GNU General Public License. (This is merely an alternate
+    way of specifying input to the program.) You may also sell a binary produced
+    by the dumping of a running Perl script that belongs to you, provided that
+    you provide or offer to provide the Perl source as specified by the GPL.
+    (The fact that a Perl interpreter and your code are in the same binary file
+    is, in this case, a form of mere aggregation.)
+    
+    This is my interpretation of the GPL. If you still have concerns or
+    difficulties understanding my intent, feel free to contact me. Of course,
+    the Artistic License spells all this out for your protection, so you may
+    prefer to use that.
+    
+    -- Larry Wall</pre>
 <p>See <a href="http://dev.perl.org/licenses/">http://dev.perl.org/licenses/</a> for more information.</p>
+<p>Voir <a href="http://dev.perl.org/licenses/">http://dev.perl.org/licenses/</a> pour plus d'information.</p>
+<p>Ver <a href="http://dev.perl.org/licenses/">http://dev.perl.org/licenses/</a> para más información.</p>
+<p>См. <a href="http://dev.perl.org/licenses/">http://dev.perl.org/licenses/</a> За дополнительной информацией.</p>
+<p>Se <a href="http://dev.perl.org/licenses/">http://dev.perl.org/licenses/</a> kwa taarifa zaidi.</p>
+<p>Féach <a href="http://dev.perl.org/licenses/">http://dev.perl.org/licenses/</a> le haghaidh tuilleadh eolais.</p>
+<p>Se <a href="http://dev.perl.org/licenses/">http://dev.perl.org/licenses/</a> för mer information.</p>
 <p><a href="#__index__"><small>Back to top</small></a></p>
 <table border="0" width="100%" cellspacing="0" cellpadding="3">
 <tr><td class="block" style="background-color: #cccccc" valign="middle">

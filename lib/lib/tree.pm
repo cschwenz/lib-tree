@@ -5,10 +5,8 @@ use strict;
 use 5.006001;
 use Config '%Config';
 use Carp qw( carp croak );
-use File::Spec::Functions qw( splitpath catpath
-                              splitdir catdir
-                              canonpath file_name_is_absolute );
-use Cwd qw( getcwd realpath );
+use File::Spec;
+use Cwd ();
 
 
 sub TRUE();
@@ -17,13 +15,88 @@ sub FALSE();
 sub FALSE() { 0; }
 
 
-our $VERSION = '0.03';
-our @Original_INC = @INC;
-our %Default = ( DIRS => [ _script_dir(), ],
-                 LIB_DIR => 'libperl',
-                 INTERPRETER_DIR => 'PerlInterpreterName',
-               );
-our $DEBUG = FALSE;
+our $VERSION = '0.04';
+our @Original_INC;
+our $DEBUG;
+our $FS;
+BEGIN {
+    $lib::tree::VERSION = '0.04';
+    @lib::tree::Original_INC = @INC;
+    $lib::tree::DEBUG = FALSE;
+    $lib::tree::FS = 'File::Spec';
+    {
+        no warnings 'redefine';
+        no strict 'refs';
+        *{'lib::tree::_valid_path'} =
+            sub {
+                my $path = shift;
+                return FALSE if(not defined $path);
+                # To return true, the given path:
+                #     1. Must exist
+                #     2. Be either a directory or a PAR archive
+                #     3. Be readable by the effective user ID
+                my $value = ( (-e $path) &&
+                              ( (-d $path) ||
+                                ( (-f $path) &&
+                                  ($path =~ m/\.par\z/i)
+                                )
+                              ) &&
+                              (-r $path)
+                            ) ? TRUE : FALSE;
+                return $value;
+            };
+        *{'lib::tree::_get_path_hash'} =
+            sub {
+                my $path = shift;
+                my %hash = ( 'path' => $path, );
+                ($hash{'volume'}, $hash{'directories'}, $hash{'file'}) =
+                        $lib::tree::FS->splitpath($hash{'path'}, 1);
+                @{$hash{'dirs'}} =
+                        $lib::tree::FS->splitdir($hash{'directories'});
+                return wantarray ? %hash : \%hash;
+            };
+        *{'lib::tree::_script_dir'} =
+            sub {
+                my %cwd = _get_path_hash(Cwd::getcwd());
+                my %script = _get_path_hash("$0");
+                # If this code was started with an absolute path, use that as
+                # our default base directory; otherwise prepend the current
+                # working directory to the (relative) code directory.
+                my $path =
+                    ($lib::tree::FS->file_name_is_absolute($script{'path'}))
+                        ? $lib::tree::FS->catdir( $script{'volume'},
+                                                  @{$script{'dirs'}} )
+                        : $lib::tree::FS->catdir( $cwd{'volume'},
+                                                  @{$cwd{'dirs'}},
+                                                  @{$script{'dirs'}} );
+                my $full_path = undef;
+                eval { $full_path = Cwd::realpath($path); };
+                if(not $full_path) {
+                    $full_path = $path;
+                }
+                if(not _valid_path($full_path)) {
+                    # If the code directory is not a valid path, fall back to
+                    # using the current working directory.
+                    $path = $lib::tree::FS->catdir( $cwd{'volume'},
+                                                    @{$cwd{'dirs'}} );
+                    eval { $full_path = Cwd::realpath($path); };
+                    if(not $full_path) {
+                        $full_path = $path;
+                    }
+                }
+                return $full_path;
+            };
+    }
+}
+
+
+our %Default;
+BEGIN {
+    %lib::tree::Default = ( DIRS => [ lib::tree::_script_dir(), ],
+                            LIB_DIR => 'libperl',
+                            INTERPRETER_DIR => 'PerlInterpreterName',
+                          );
+}
 
 
 my $version = $Config{version};
@@ -340,31 +413,6 @@ sub _parse_params {
 }
 
 
-sub _script_dir {
-    my %cwd = _get_path_hash(getcwd());
-    my %script = _get_path_hash("$0");
-    # If this code was started with an absolute path, use that as our default
-    # base directory; otherwise prepend the current working directory to the
-    # (relative) code directory.
-    my $path = (file_name_is_absolute($script{'path'}))
-                 ? catdir($script{'volume'}, @{$script{'dirs'}})
-                 : catdir($cwd{'volume'}, @{$cwd{'dirs'}}, @{$script{'dirs'}});
-    my $full_path = realpath($path);
-    if(not $full_path) {
-        $full_path = $path;
-    }
-    if(not _valid_path($full_path)) {
-        $path = catdir($cwd{'volume'}, @{$cwd{'dirs'}});
-        $full_path = realpath($path);
-        if(not $full_path) {
-            $full_path = $path;
-        }
-    }
-
-    return $full_path;
-}
-
-
 sub _find_dirs {
     my $list_ref = shift;
 
@@ -397,7 +445,7 @@ sub _find_lib_dirs
     if($depth_first) {
         SEARCH: foreach my $p (@{$dirs_ref}) {
             my %dir = _get_path_hash($p);
-            my $d = catdir($dir{'volume'}, @{$dir{'dirs'}});
+            my $d = $FS->catdir($dir{'volume'}, @{$dir{'dirs'}});
             my @up = ();
             my @down = ();
             for(my $x = 0; $x <= $delta; $x++) {
@@ -408,10 +456,10 @@ sub _find_lib_dirs
                                  "director" . (($x == 1) ? 'y' : 'ies') .
                                  " up/down).\n";
                 }
-                my $up_dir = catdir($d, @up, $lib_dir);
+                my $up_dir = $FS->catdir($d, @up, $lib_dir);
                 my @temp_up = _glob_dir($up_dir);
                 $found_dir = _add_to_list(\@lib_dirs, \@temp_up, $found_dir);
-                my $down_dir = catdir($d, @down, $lib_dir);
+                my $down_dir = $FS->catdir($d, @down, $lib_dir);
                 my @temp_down = _glob_dir($down_dir);
                 $found_dir = _add_to_list(\@lib_dirs, \@temp_down, $found_dir);
                 push @up, '..';
@@ -432,7 +480,7 @@ sub _find_lib_dirs
         SEARCH: for(my $x = 0; $x <= $delta; $x++) {
             foreach my $p (@{$dirs_ref}) {
                 my %dir = _get_path_hash($p);
-                my $d = catdir($dir{'volume'}, @{$dir{'dirs'}});
+                my $d = $FS->catdir($dir{'volume'}, @{$dir{'dirs'}});
                 if($DEBUG && ($x > 0)) {
                     print STDERR "***DEBUG: Searching up/down $x " .
                                  "director" . (($x == 1) ? 'y' : 'ies') .
@@ -440,10 +488,10 @@ sub _find_lib_dirs
                                  "director" . (($x == 1) ? 'y' : 'ies') .
                                  " up/down).\n";
                 }
-                my $up_dir = catdir($d, @up, $lib_dir);
+                my $up_dir = $FS->catdir($d, @up, $lib_dir);
                 my @temp_up = _glob_dir($up_dir);
                 $found_dir = _add_to_list(\@lib_dirs, \@temp_up, $found_dir);
-                my $down_dir = catdir($d, @down, $lib_dir);
+                my $down_dir = $FS->catdir($d, @down, $lib_dir);
                 my @temp_down = _glob_dir($down_dir);
                 $found_dir = _add_to_list(\@lib_dirs, \@temp_down, $found_dir);
                 if((defined $found_dir) && $halt) {
@@ -494,8 +542,9 @@ sub _find_INC_dirs {
             }
         }
         my %root = _get_path_hash($dir);
-        my $interp_dir = catdir( $root{'volume'}, @{$root{'dirs'}},
-                                 $Default{INTERPRETER_DIR}, _find_perl_type() );
+        my $interp_dir = $FS->catdir( $root{'volume'}, @{$root{'dirs'}},
+                                      $Default{INTERPRETER_DIR},
+                                      _find_perl_type() );
         if(_valid_path($interp_dir)) {
             # If we found a directory which differentiates the Perl library
             # by interpreter type, then add the library tree under the
@@ -512,44 +561,35 @@ sub _find_INC_dirs {
     return wantarray ? @inc_dirs : \@inc_dirs;
 }
 
-sub _get_path_hash {
-    my $path = shift;
-
-    my %hash = ( 'path' => $path, );
-    ($hash{'volume'}, $hash{'directories'}, $hash{'file'}) =
-                splitpath($hash{'path'}, 1);
-    @{$hash{'dirs'}} = splitdir($hash{'directories'});
-
-    return wantarray ? %hash : \%hash;
-}
-
 
 sub _get_dirs {
     my $path = shift;
 
     my %dir = _get_path_hash($path);
-    my @lib = ( catdir($dir{'volume'}, @{$dir{'dirs'}}, 'lib'), );
-    my @site_lib = ( catdir($dir{'volume'}, @{$dir{'dirs'}}, 'site', 'lib'), );
+    my @lib = ( $FS->catdir( $dir{'volume'}, @{$dir{'dirs'}},
+                             'lib' ), );
+    my @site_lib = ( $FS->catdir( $dir{'volume'}, @{$dir{'dirs'}},
+                                  'site', 'lib' ), );
     foreach my $ver (@inc_version_list) {
         if((defined $ver) && (length($ver) >= 1)) {
-            push @lib, catdir($lib[0], $ver);
-            push @site_lib, catdir($site_lib[0], $ver);
+            push @lib, $FS->catdir($lib[0], $ver);
+            push @site_lib, $FS->catdir($site_lib[0], $ver);
         }
     }
     foreach my $a ($archname, $archname64) {
         if((defined $a) && (length($a) >= 1)) {
-            push @lib, catdir($lib[0], $a);
-            push @site_lib, catdir($site_lib[0], $a);
+            push @lib, $FS->catdir($lib[0], $a);
+            push @site_lib, $FS->catdir($site_lib[0], $a);
         }
     }
     foreach my $v ($major_version, $version) {
         if((defined $v) && (length($v) >= 1)) {
-            push @lib, catdir($lib[0], $v);
-            push @site_lib, catdir($site_lib[0], $v);
+            push @lib, $FS->catdir($lib[0], $v);
+            push @site_lib, $FS->catdir($site_lib[0], $v);
             foreach my $a ($archname, $archname64) {
                 if((defined $a) && (length($a) >= 1)) {
-                    push @lib, catdir($lib[0], $v, $a);
-                    push @site_lib, catdir($site_lib[0], $v, $a);
+                    push @lib, $FS->catdir($lib[0], $v, $a);
+                    push @site_lib, $FS->catdir($site_lib[0], $v, $a);
                 }
             }
         }
@@ -601,8 +641,8 @@ sub _find_perl_type {
         elsif($os =~ m/32/) {
             $os =~ s/32/64/;
         }
-        elsif($os =~ m/x86/) {
-            $os =~ s/x86/x64/;
+        elsif($os =~ m/x86(?:_64)?/) {
+            $os =~ s/x86(?:_64)?/x64/;
         }
     }
     if($perl_type !~ m/\A\Q$os\E[\-]/) {
@@ -614,21 +654,12 @@ sub _find_perl_type {
 }
 
 
-sub _valid_path {
-    my $path = shift;
-    return FALSE if(not defined $path);
-    my $value = ( (-e $path) &&
-                  ( (-d $path) || ((-f $path) && ($path =~ m/\.par\z/i)) ) &&
-                  (-r $path) ) ? TRUE : FALSE;
-    return $value;
-}
-
-
 sub _glob_dir {
     my $dir = shift;
 
     my @list = grep { _valid_path($_) }
-               map { my $p = realpath($_);
+               map { my $p = undef;
+                     eval { $p = Cwd::realpath($_); };
                      if(not $p) { $p = $_; }
                      $p; }
                grep { -e $_ } glob($dir);
@@ -680,7 +711,7 @@ lib::tree - Add directory trees to the C<@INC> array at compile time.
 
 =head1 VERSION
 
-Version 0.03
+Version 0.04
 
 
 =head1 SYNOPSIS
@@ -899,6 +930,28 @@ Synonyms are: C<:HALT-ON-FIND>, C<:HALT_ON_FIND>
 Turns on debugging.  May be negated by prepending C<NO-> (i.e., C<:NO-DEBUG>).
 
 =back
+
+Also, C<lib::tree> uses the C<File::Spec> module methods for all path
+manipulation.  As an added bonus, C<lib::tree> allows you to specify which
+flavour of C<File::Spec> you want C<lib::tree> to use via the C<$FS> variable
+(defaults to C<'File::Spec'>).
+
+Should you want C<lib::tree> to use a specific flavour of C<File::Spec>, use
+something like the following code:
+
+    BEGIN {
+        require lib::tree;
+        $lib::tree::FS = 'File::Spec::Unix';
+    }
+    use lib::tree ('/some/directory/', 'another/directory/');
+    
+    #  ~~~ or ~~~  
+    
+    BEGIN {
+        require lib::tree;
+        $lib::tree::FS = 'File::Spec::Unix';
+        lib::tree->import('/some/directory/', 'another/directory/');
+    }
 
 
 =head1 EXAMPLES
@@ -1161,11 +1214,18 @@ Calvin Schwenzfeier, C<< <calvin dot schwenzfeier at gmail.com> >>
 
 =head1 BUGS
 
+Please report any bugs or feature requests through GitHub's issue tracker web
+interface at L<http://github.com/cschwenz/lib-tree/issues>.
+
+=begin COMMENT
+
 Please report any bugs or feature requests to
 C<< <bug-lib-tree at rt.cpan.org> >>, or through the web interface at
 L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=lib-tree>.  I will be notified,
 and then you'll automatically be notified of progress on your bug as I make
 changes.
+
+=end COMMENT
 
 
 =head1 SUPPORT
@@ -1175,6 +1235,28 @@ You can find documentation for this module with the perldoc command.
     perldoc lib::tree
 
 You can also look for information at:
+
+=over
+
+=item * The C<lib::tree> online docs (hosted on GitHub):
+
+L<http://cschwenz.github.com/lib-tree/lib/tree.html>
+
+=item * GitHub's issue tracker:
+
+L<http://github.com/cschwenz/lib-tree/issues>
+
+=item * The C<lib::tree> wiki (hosted on GitHub):
+
+L<http://wiki.github.com/cschwenz/lib-tree/>
+
+=item * Source code (hosted on GitHub):
+
+L<http://github.com/cschwenz/lib-tree>
+
+=back
+
+=begin COMMENT
 
 =over
 
@@ -1195,6 +1277,8 @@ L<http://cpanratings.perl.org/d/lib-tree>
 L<http://search.cpan.org/dist/lib-tree/>
 
 =back
+
+=end COMMENT
 
 
 =head1 ACKNOWLEDGEMENTS
@@ -1226,11 +1310,70 @@ chosen.E<rdquo>
 
 Copyright 2010 Calvin Schwenzfeier.
 
+=begin COMMENT
+
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
 by the Free Software Foundation; or the Artistic License.
 
+=end COMMENT
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of either:
+
+=over
+
+=item a)
+
+the GNU General Public License [L<http://dev.perl.org/licenses/gpl1.html>] as published by the Free Software Foundation [L<http://www.fsf.org/>]; either version 1 [L<http://dev.perl.org/licenses/gpl1.html>], or (at your option) any later version [L<http://www.fsf.org/licensing/licenses/#GNUGPL>], or
+
+=item b)
+
+the "Artistic License" [L<http://dev.perl.org/licenses/artistic.html>].
+
+=back
+
+    
+    For those of you that choose to use the GNU General Public License, my
+    interpretation of the GNU General Public License is that no Perl script
+    falls under the terms of the GPL unless you explicitly put said script under
+    the terms of the GPL yourself.
+    
+    Furthermore, any object code linked with perl does not automatically fall
+    under the terms of the GPL, provided such object code only adds definitions
+    of subroutines and variables, and does not otherwise impair the resulting
+    interpreter from executing any standard Perl script. I consider linking in C
+    subroutines in this manner to be the moral equivalent of defining
+    subroutines in the Perl language itself. You may sell such an object file as
+    proprietary provided that you provide or offer to provide the Perl source,
+    as specified by the GNU General Public License. (This is merely an alternate
+    way of specifying input to the program.) You may also sell a binary produced
+    by the dumping of a running Perl script that belongs to you, provided that
+    you provide or offer to provide the Perl source as specified by the GPL.
+    (The fact that a Perl interpreter and your code are in the same binary file
+    is, in this case, a form of mere aggregation.)
+    
+    This is my interpretation of the GPL. If you still have concerns or
+    difficulties understanding my intent, feel free to contact me. Of course,
+    the Artistic License spells all this out for your protection, so you may
+    prefer to use that.
+    
+    -- Larry Wall
+    
+
 See L<http://dev.perl.org/licenses/> for more information.
+
+Voir L<http://dev.perl.org/licenses/> pour plus d'information.
+
+Ver L<http://dev.perl.org/licenses/> para más información.
+
+См. L<http://dev.perl.org/licenses/> За дополнительной информацией.
+
+Se L<http://dev.perl.org/licenses/> kwa taarifa zaidi.
+
+Féach L<http://dev.perl.org/licenses/> le haghaidh tuilleadh eolais.
+
+Se L<http://dev.perl.org/licenses/> för mer information.
 
 
 =cut

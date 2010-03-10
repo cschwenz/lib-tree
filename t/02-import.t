@@ -1,9 +1,7 @@
 use warnings;
 use strict;
 use Test::More tests => 23;
-use File::Spec::Functions qw( splitpath catpath catfile
-                              splitdir catdir
-                              canonpath file_name_is_absolute );
+use File::Spec;
 use File::Path qw(mkpath rmtree);
 require Cwd;
 use lib './t';
@@ -23,6 +21,7 @@ use TestUtils qw( create_test_lib create_test_lib_tree
 
 my $cwd = $TestUtils::cwd;
 my $test_lib = $TestUtils::test_lib;
+my $FS = $TestUtils::FS;
 
 
 
@@ -71,7 +70,7 @@ my $test_lib = $TestUtils::test_lib;
     my @test_INC = ( @INC );
     my ($path) = grep { dir_equal($lib_dir, $_) == 1 } @test_INC;
     # Test 3
-    cmp_ok( canonpath($path), 'eq', canonpath($lib_dir),
+    cmp_ok( $FS->canonpath($path), 'eq', $FS->canonpath($lib_dir),
             'The import() function can find the default directory.' );
 
     {
@@ -107,7 +106,7 @@ my $test_lib = $TestUtils::test_lib;
     my @test_INC = ( @INC );
     my ($path) = grep { dir_equal($custom_lib, $_) == 1 } @test_INC;
     # Test 5
-    cmp_ok( canonpath($path), 'eq', canonpath($custom_lib),
+    cmp_ok( $FS->canonpath($path), 'eq', $FS->canonpath($custom_lib),
             'The import() function can find a custom named directory.' );
 
     {
@@ -147,19 +146,19 @@ my $test_lib = $TestUtils::test_lib;
     my $custom_name = 'custom-perl';
     my @custom_libs = (undef, undef);
     {
-        my @data = create_test_lib(catdir($base_dir_name, 'libperl'));
+        my @data = create_test_lib($FS->catdir($base_dir_name, 'libperl'));
         if($data[0] != PASS) {
             BAIL_OUT($data[1]);
         }
         elsif($data[0] == PASS) {
-            $custom_libs[0] = canonpath($data[1]);
+            $custom_libs[0] = $FS->canonpath($data[1]);
         }
-        @data = create_test_lib(catdir($base_dir_name, $custom_name));
+        @data = create_test_lib($FS->catdir($base_dir_name, $custom_name));
         if($data[0] != PASS) {
             BAIL_OUT($data[1]);
         }
         elsif($data[0] == PASS) {
-            $custom_libs[1] = canonpath($data[1]);
+            $custom_libs[1] = $FS->canonpath($data[1]);
         }
     }
 
@@ -167,7 +166,7 @@ my $test_lib = $TestUtils::test_lib;
     my @test_INC = ( @INC );
     my ($path) = grep { dir_equal($custom_libs[0], $_) == 1 } @test_INC;
     # Test 7
-    cmp_ok( canonpath($path), 'eq', canonpath($custom_libs[0]),
+    cmp_ok( $FS->canonpath($path), 'eq', $FS->canonpath($custom_libs[0]),
             'The import() function can find the default directory in a ' .
             'different directory via DIRS parameter.' );
 
@@ -176,7 +175,7 @@ my $test_lib = $TestUtils::test_lib;
     @test_INC = ( @INC );
     ($path) = grep { dir_equal($custom_libs[0], $_) == 1 } @test_INC;
     # Test 8
-    cmp_ok( canonpath($path), 'eq', canonpath($custom_libs[0]),
+    cmp_ok( $FS->canonpath($path), 'eq', $FS->canonpath($custom_libs[0]),
             'The import() function can find the default directory in a ' .
             'different directory via DELTA parameter.' );
 
@@ -185,7 +184,7 @@ my $test_lib = $TestUtils::test_lib;
     @test_INC = ( @INC );
     ($path) = grep { dir_equal($custom_libs[1], $_) == 1 } @test_INC;
     # Test 9
-    cmp_ok( canonpath($path), 'eq', canonpath($custom_libs[1]),
+    cmp_ok( $FS->canonpath($path), 'eq', $FS->canonpath($custom_libs[1]),
             'The import() function can find a custom named directory in a ' .
             'different directory via a complex list with only the library ' .
             'directory name given.' );
@@ -195,7 +194,7 @@ my $test_lib = $TestUtils::test_lib;
     @test_INC = ( @INC );
     ($path) = grep { dir_equal($custom_libs[1], $_) == 1 } @test_INC;
     # Test 10
-    cmp_ok( canonpath($path), 'eq', canonpath($custom_libs[1]),
+    cmp_ok( $FS->canonpath($path), 'eq', $FS->canonpath($custom_libs[1]),
             'The import() function can find a custom named directory in a ' .
             'different directory via a complex list with the delta set.' );
 
@@ -205,9 +204,9 @@ my $test_lib = $TestUtils::test_lib;
                        HALT_ON_FIND => 0 );
     @test_INC = ( @INC );
     my @custom_path = ();
-    ($custom_path[0]) = map { canonpath($_) }
+    ($custom_path[0]) = map { $FS->canonpath($_) }
                         grep { dir_equal($custom_libs[0], $_) == 1 } @test_INC;
-    ($custom_path[1]) = map { canonpath($_) }
+    ($custom_path[1]) = map { $FS->canonpath($_) }
                         grep { dir_equal($custom_libs[1], $_) == 1 } @test_INC;
     # Test 11
     is_deeply( \@custom_path, \@custom_libs,
@@ -227,7 +226,7 @@ my $test_lib = $TestUtils::test_lib;
         local *FILE_FH;
         local *ORIG_STDERR;
         {
-            my $temp_filename = catfile($base_dir, "${base_dir_name}.err");
+            my $temp_filename = $FS->catfile($base_dir, "${base_dir_name}.err");
             my $file_status = open(FILE_FH, '>', $temp_filename);
             if($file_status) {
                 $temp_FILE_FH = TRUE;
@@ -246,9 +245,9 @@ my $test_lib = $TestUtils::test_lib;
         lib::tree->import($custom_libs[0], $custom_libs[1], ':DEBUG');
         @test_INC = ( @INC );
         @custom_path = ();
-        ($custom_path[0]) = map { canonpath($_) }
+        ($custom_path[0]) = map { $FS->canonpath($_) }
                             grep { dir_equal($custom_libs[0], $_) == 1 } @test_INC;
-        ($custom_path[1]) = map { canonpath($_) }
+        ($custom_path[1]) = map { $FS->canonpath($_) }
                             grep { dir_equal($custom_libs[1], $_) == 1 } @test_INC;
         # Test 12
         is_deeply( \@custom_path, \@custom_libs,
@@ -310,7 +309,7 @@ my $test_lib = $TestUtils::test_lib;
     my @test_INC = ( @INC );
     my ($path) = grep { dir_equal($custom_lib, $_) == 1 } @test_INC;
     # Test 16
-    cmp_ok( canonpath($path), 'eq', canonpath($custom_lib),
+    cmp_ok( $FS->canonpath($path), 'eq', $FS->canonpath($custom_lib),
             'The import() function can find a custom named directory.' );
 
     SKIP: {
@@ -322,7 +321,9 @@ my $test_lib = $TestUtils::test_lib;
                 'The import() function can find version directories within ' .
                 'a custom named directory.' );
         # Test 18
-        cmp_ok( canonpath($path_list[-1]), 'eq', canonpath(catdir($custom_lib, 'lib', $version)),
+        cmp_ok( $FS->canonpath($path_list[-1]),
+                'eq',
+                $FS->canonpath($FS->catdir($custom_lib, 'lib', $version)),
                 'The import() function puts the version directories in the ' .
                 'correct order (most specific to least specific).' );
     }
@@ -336,7 +337,9 @@ my $test_lib = $TestUtils::test_lib;
                 'The import() function can find the architecture name ' .
                 'directories within a custom named directory.' );
         # Test 20
-        cmp_ok( canonpath($path_list[-1]), 'eq', canonpath(catdir($custom_lib, 'lib', $archname)),
+        cmp_ok( $FS->canonpath($path_list[-1]),
+                'eq',
+                $FS->canonpath($FS->catdir($custom_lib, 'lib', $archname)),
                 'The import() function puts the architecture name ' .
                 'directories in the correct order (most specific to least ' .
                 'specific).' );
@@ -351,7 +354,9 @@ my $test_lib = $TestUtils::test_lib;
                 'The import() function can find 64-bit architecture name ' .
                 'directories within a custom named directory.' );
         # Test 22
-        cmp_ok( canonpath($path_list[-1]), 'eq', canonpath(catdir($custom_lib, 'lib', $archname64)),
+        cmp_ok( $FS->canonpath($path_list[-1]),
+                'eq',
+                $FS->canonpath($FS->catdir($custom_lib, 'lib', $archname64)),
                 'The import() function puts the 64-bit architecture name ' .
                 'directories in the correct order (most specific to least ' .
                 'specific).' );

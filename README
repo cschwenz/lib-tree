@@ -4,9 +4,19 @@ NAME and VERSION
 
 lib-tree
 
-0.03    2010-03-05/08:29 am EST
-        * More bug fixes.
-        * The tests now cover more of the functionality provided by lib::tree.
+0.04    2010-03-09/11:17 pm EST
+        * Fixed two bugs reported by 'cmccutch' (one in the _script_dir()
+          function of lib::tree and the other in the create_test_lib_tree()
+          function of .../t/TestUtils.pm).
+        * Removed the dependency on File::Spec::Functions.  All File::Spec calls
+          are now called using the $FS->method() syntax, where $FS is an 'our'
+          value defined at the beginning of lib::tree.  This means you can
+          explicitly tell lib::tree which flavour of File::Spec you want it to
+          use (the $FS variable defaults to 'File::Spec').
+        * The change to using the $FS->method() syntax necessitated moving three
+          functions into a BEGIN block near the top of the .../lib/tree.pm file.
+        * Adding the .../inc/ directory to aid with clean Module::Install
+          installs on systems which do not have Module::Install present.
 
 ===========================================================================
 
@@ -15,19 +25,18 @@ lib-tree
 DEPENDENCIES
 ---------------------------------------------------------------------------
 
-Config
 Carp
-File::Spec
-File::Spec::Functions
-File::Path
+Config
 Cwd
+File::Spec
 
 
 ---------------------------------------------------------------------------
 Dependencies for Testing
 ---------------------------------------------------------------------------
-Test::More
+File::Path
 IO::Handle
+Test::More
 
 ===========================================================================
 
@@ -90,6 +99,18 @@ under the terms of either: the GNU General Public License as published
 by the Free Software Foundation; or the Artistic License.
 
 See http://dev.perl.org/licenses/ for more information.
+
+Voir http://dev.perl.org/licenses/ pour plus d'information.
+
+Ver http://dev.perl.org/licenses/ para más información.
+
+См. http://dev.perl.org/licenses/ За дополнительной информацией.
+
+Se http://dev.perl.org/licenses/ kwa taarifa zaidi.
+
+Féach http://dev.perl.org/licenses/ le haghaidh tuilleadh eolais.
+
+Se http://dev.perl.org/licenses/ för mer information.
 
 ===========================================================================
 

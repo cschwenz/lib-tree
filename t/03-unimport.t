@@ -1,9 +1,7 @@
 use warnings;
 use strict;
 use Test::More tests => 7;
-use File::Spec::Functions qw( splitpath catpath catfile
-                              splitdir catdir
-                              canonpath file_name_is_absolute );
+use File::Spec;
 use File::Path qw(mkpath rmtree);
 require Cwd;
 use lib './t';
@@ -22,6 +20,7 @@ use TestUtils qw( create_test_lib destroy_test_lib
 
 my $cwd = $TestUtils::cwd;
 my $test_lib = $TestUtils::test_lib;
+my $FS = $TestUtils::FS;
 
 
 
@@ -70,7 +69,7 @@ my $test_lib = $TestUtils::test_lib;
     my @test_INC = ( @INC );
     my ($path) = grep { dir_equal($lib_dir, $_) == 1 } @test_INC;
     # Test 3
-    cmp_ok( canonpath($path), 'eq', canonpath($lib_dir),
+    cmp_ok( $FS->canonpath($path), 'eq', $FS->canonpath($lib_dir),
             'The import() function can find the default directory.' );
 
     lib::tree->unimport();
