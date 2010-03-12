@@ -13,14 +13,16 @@ sub TRUE();
 sub TRUE() { 1; }
 sub FALSE();
 sub FALSE() { 0; }
+sub IS_64BIT();
+sub IS_64BIT() { (1<<33) != 2; }
 
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 our @Original_INC;
 our $DEBUG;
 our $FS;
 BEGIN {
-    $lib::tree::VERSION = '0.04';
+    $lib::tree::VERSION = '0.05';
     @lib::tree::Original_INC = @INC;
     $lib::tree::DEBUG = FALSE;
     $lib::tree::FS = 'File::Spec';
@@ -101,6 +103,7 @@ BEGIN {
 
 my $version = $Config{version};
 my $perl_version = sprintf('%vd', $^V);
+my $short_version = undef;
 my $major_version = undef;
 my $archname = $Config{archname};
 my $archname64 = $Config{archname64};
@@ -124,8 +127,9 @@ if( (not defined $perl_osname) || (length($perl_osname) < 1) ) {
 if( (defined $version) && (length($version) >= 1) &&
     (defined $perl_version) && (length($perl_version) >= 1) ) {
     if( ($perl_version eq $version) &&
-        ($version =~ m/\A\s*(\d+(?:\.\d+)?)(?:\.\d+(?:\.\d+)*?)*?\s*\z/) ) {
-        $major_version = $1;
+        ($version =~ m/\A\s*((\d+)(?:\.\d+)?)(?:\.\d+(?:\.\d+)*?)*?\s*\z/) ) {
+        $short_version = $1;
+        $major_version = "perl$2";
     }
     elsif($perl_version ne $version) {
         carp( "The version reported by Config ($version) differs from the " .
@@ -570,31 +574,135 @@ sub _get_dirs {
                              'lib' ), );
     my @site_lib = ( $FS->catdir( $dir{'volume'}, @{$dir{'dirs'}},
                                   'site', 'lib' ), );
+    my @lib64 = ( $FS->catdir( $dir{'volume'}, @{$dir{'dirs'}},
+                               'lib64' ), );
+    my @site_lib64 = ( $FS->catdir( $dir{'volume'}, @{$dir{'dirs'}},
+                                    'site', 'lib64' ), );
+
     foreach my $ver (@inc_version_list) {
         if((defined $ver) && (length($ver) >= 1)) {
             push @lib, $FS->catdir($lib[0], $ver);
             push @site_lib, $FS->catdir($site_lib[0], $ver);
+            push @lib64, $FS->catdir($lib64[0], $ver);
+            push @site_lib64, $FS->catdir($site_lib64[0], $ver);
         }
     }
     foreach my $a ($archname, $archname64) {
         if((defined $a) && (length($a) >= 1)) {
             push @lib, $FS->catdir($lib[0], $a);
             push @site_lib, $FS->catdir($site_lib[0], $a);
+            push @lib64, $FS->catdir($lib64[0], $a);
+            push @site_lib64, $FS->catdir($site_lib64[0], $a);
         }
     }
-    foreach my $v ($major_version, $version) {
+    foreach my $v ($short_version, $version) {
         if((defined $v) && (length($v) >= 1)) {
             push @lib, $FS->catdir($lib[0], $v);
             push @site_lib, $FS->catdir($site_lib[0], $v);
+            push @lib64, $FS->catdir($lib64[0], $v);
+            push @site_lib64, $FS->catdir($site_lib64[0], $v);
             foreach my $a ($archname, $archname64) {
                 if((defined $a) && (length($a) >= 1)) {
                     push @lib, $FS->catdir($lib[0], $v, $a);
                     push @site_lib, $FS->catdir($site_lib[0], $v, $a);
+                    push @lib64, $FS->catdir($lib64[0], $v, $a);
+                    push @site_lib64, $FS->catdir($site_lib64[0], $v, $a);
                 }
             }
         }
     }
-    my @dirs = (@lib, @site_lib);
+    if(defined $major_version) {
+        push @lib, $FS->catdir($lib[0], $major_version);
+        push @site_lib, $FS->catdir($site_lib[0], $major_version);
+        push @lib64, $FS->catdir($lib64[0], $major_version);
+        push @site_lib64, $FS->catdir($site_lib64[0], $major_version);
+        my %pos = ( 'lib' => $#lib,
+                    'site_lib' => $#site_lib,
+                    'lib64' => $#lib64,
+                    'site_lib64' => $#site_lib64,
+                  );
+        foreach my $ver (@inc_version_list) {
+            if((defined $ver) && (length($ver) >= 1)) {
+                push @lib, $FS->catdir($lib[$pos{'lib'}], $ver);
+                push @site_lib, $FS->catdir($site_lib[$pos{'site_lib'}], $ver);
+                push @lib64, $FS->catdir($lib64[$pos{'lib64'}], $ver);
+                push @site_lib64, $FS->catdir( $site_lib64[$pos{'site_lib64'}],
+                                               $ver );
+            }
+        }
+        foreach my $a ($archname, $archname64) {
+            if((defined $a) && (length($a) >= 1)) {
+                push @lib, $FS->catdir($lib[$pos{'lib'}], $a);
+                push @site_lib, $FS->catdir($site_lib[$pos{'site_lib'}], $a);
+                push @lib64, $FS->catdir($lib64[$pos{'lib64'}], $a);
+                push @site_lib64, $FS->catdir( $site_lib64[$pos{'site_lib64'}],
+                                               $a );
+            }
+        }
+        foreach my $v ($short_version, $version) {
+            if((defined $v) && (length($v) >= 1)) {
+                push @lib, $FS->catdir($lib[$pos{'lib'}], $v);
+                push @site_lib, $FS->catdir($site_lib[$pos{'site_lib'}], $v);
+                push @lib64, $FS->catdir($lib64[$pos{'lib64'}], $v);
+                push @site_lib64, $FS->catdir( $site_lib64[$pos{'site_lib64'}],
+                                               $v );
+                foreach my $a ($archname, $archname64) {
+                    if((defined $a) && (length($a) >= 1)) {
+                        push @lib, $FS->catdir($lib[$pos{'lib'}], $v, $a);
+                        push @site_lib, $FS->catdir(
+                                            $site_lib[$pos{'site_lib'}],
+                                            $v, $a );
+                        push @lib64, $FS->catdir($lib64[$pos{'lib64'}], $v, $a);
+                        push @site_lib64, $FS->catdir(
+                                              $site_lib64[$pos{'site_lib64'}],
+                                              $v, $a );
+                    }
+                }
+            }
+        }
+        foreach my $d ('site_lib', 'site_perl') {
+            push @lib, $FS->catdir($lib[$pos{'lib'}], $d);
+            push @site_lib, $FS->catdir( $site_lib[$pos{'site_lib'}],
+                                         $d );
+            push @lib64, $FS->catdir($lib64[$pos{'lib64'}], $d);
+            push @site_lib64, $FS->catdir(
+                                  $site_lib64[$pos{'site_lib64'}],
+                                  $d );
+            foreach my $v ($short_version, $version) {
+                if((defined $v) && (length($v) >= 1)) {
+                    push @lib, $FS->catdir($lib[$pos{'lib'}], $d, $v);
+                    push @site_lib, $FS->catdir( $site_lib[$pos{'site_lib'}],
+                                                 $d, $v );
+                    push @lib64, $FS->catdir($lib64[$pos{'lib64'}], $d, $v);
+                    push @site_lib64, $FS->catdir(
+                                          $site_lib64[$pos{'site_lib64'}],
+                                          $d, $v );
+                    foreach my $a ($archname, $archname64) {
+                        if((defined $a) && (length($a) >= 1)) {
+                            push @lib, $FS->catdir( $lib[$pos{'lib'}],
+                                                    $d, $v, $a );
+                            push @site_lib, $FS->catdir(
+                                                $site_lib[$pos{'site_lib'}],
+                                                $d, $v, $a );
+                            push @lib64, $FS->catdir( $lib64[$pos{'lib64'}],
+                                                      $d, $v, $a );
+                            push @site_lib64, $FS->catdir(
+                                                  $site_lib64[$pos{'site_lib64'}],
+                                                  $d, $v, $a );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    my @dirs = ();
+    if(IS_64BIT) {
+        @dirs = (@lib64, @site_lib64, @lib, @site_lib);
+    }
+    else {
+        @dirs = (@lib, @site_lib);
+    }
 
     return wantarray ? @dirs : \@dirs;
 }
@@ -634,7 +742,7 @@ sub _find_perl_type {
         $perl_type = "${perl_type}Perl";
     }
     my $os = $osname;
-    if((defined $archname64) && ($os !~ m/64/)) {
+    if(IS_64BIT && ($os !~ m/64/)) {
         if(($os !~ m/32/) && ($os !~ m/x86/)) {
             $os .= '64';
         }
@@ -711,7 +819,7 @@ lib::tree - Add directory trees to the C<@INC> array at compile time.
 
 =head1 VERSION
 
-Version 0.04
+Version 0.05
 
 
 =head1 SYNOPSIS
@@ -817,15 +925,15 @@ F<.../B<{lib_dir}>/B<{archname64}>/>
 
 =item *
 
-F<.../B<{lib_dir}>/B<{major_version}>/>
+F<.../B<{lib_dir}>/B<{short_version}>/>
 
 =item *
 
-F<.../B<{lib_dir}>/B<{major_version}>/B<{archname}>/>
+F<.../B<{lib_dir}>/B<{short_version}>/B<{archname}>/>
 
 =item *
 
-F<.../B<{lib_dir}>/B<{major_version}>/B<{archname64}>/>
+F<.../B<{lib_dir}>/B<{short_version}>/B<{archname64}>/>
 
 =item *
 
