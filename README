@@ -4,19 +4,8 @@ NAME and VERSION
 
 lib-tree
 
-0.04    2010-03-09/11:17 pm EST
-        * Fixed two bugs reported by 'cmccutch' (one in the _script_dir()
-          function of lib::tree and the other in the create_test_lib_tree()
-          function of .../t/TestUtils.pm).
-        * Removed the dependency on File::Spec::Functions.  All File::Spec calls
-          are now called using the $FS->method() syntax, where $FS is an 'our'
-          value defined at the beginning of lib::tree.  This means you can
-          explicitly tell lib::tree which flavour of File::Spec you want it to
-          use (the $FS variable defaults to 'File::Spec').
-        * The change to using the $FS->method() syntax necessitated moving three
-          functions into a BEGIN block near the top of the .../lib/tree.pm file.
-        * Adding the .../inc/ directory to aid with clean Module::Install
-          installs on systems which do not have Module::Install present.
+0.05    2010-03-11/11:35 pm EST
+        * The _get_dirs() function now returns a more complete directory list.
 
 ===========================================================================
 

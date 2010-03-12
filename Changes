@@ -1,5 +1,8 @@
 Revision history for lib-tree
 
+0.05    2010-03-11/11:35 pm EST
+        * The _get_dirs() function now returns a more complete directory list.
+
 0.04    2010-03-09/11:17 pm EST
         * Fixed two bugs reported by 'cmccutch' (one in the _script_dir()
           function of lib::tree and the other in the create_test_lib_tree()
