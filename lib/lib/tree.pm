@@ -660,7 +660,7 @@ sub _get_dirs {
                 }
             }
         }
-        foreach my $d ('site_lib', 'site_perl') {
+        foreach my $d ('site_lib', 'site_perl', 'vendor_perl', 'vendor_lib') {
             push @lib, $FS->catdir($lib[$pos{'lib'}], $d);
             push @site_lib, $FS->catdir( $site_lib[$pos{'site_lib'}],
                                          $d );
